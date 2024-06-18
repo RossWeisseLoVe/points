@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dragon.flow.mapper.customer.ActivityMapper">
+
+    <resultMap id="BaseResultMap" type="com.dragon.flow.model.customer.Activity">
+            <id property="id" column="id" jdbcType="VARCHAR"/>
+            <result property="name" column="name" jdbcType="VARCHAR"/>
+            <result property="point" column="point" jdbcType="INTEGER"/>
+            <result property="type" column="type" jdbcType="INTEGER"/>
+            <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+            <result property="creator" column="creator" jdbcType="VARCHAR"/>
+            <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+            <result property="updator" column="updator" jdbcType="VARCHAR"/>
+            <result property="delFlag" column="del_flag" jdbcType="INTEGER"/>
+            <result property="remark" column="remark" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,name,point,type,
+        create_time,creator,update_time,
+        updator,del_flag,remark
+    </sql>
+
+    <select id="getPagerModal" resultType="com.dragon.flow.vo.customer.ActivityVo">
+        select t1.*,t2.real_name creator_name,t3.real_name updator_name from tbl_customer_activity t1
+        left join tbl_privilege_user t2
+        on t1.creator = t2.id
+        left join tbl_privilege_user t3
+        on t1.updator = t3.id
+        where t1.del_flag=1
+        <if test="entity.type!=null">
+            and t1.type = #{entity.type}
+        </if>
+        <if test="entity.keyword!=null and entity.keyword!=''">
+            and t1.name like concat('%', #{entity.keyword}, '%')
+        </if>
+    </select>
+</mapper>

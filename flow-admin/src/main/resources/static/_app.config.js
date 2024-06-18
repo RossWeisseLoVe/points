@@ -1,0 +1,1 @@
+window.__PRODUCTION__4F014E1A6570667A5316__CONF__={"VITE_GLOB_APP_TITLE":"企业数智化","VITE_GLOB_API_URL":"","VITE_GLOB_UPLOAD_URL":"/upload","VITE_GLOB_API_URL_PREFIX":""};Object.freeze(window.__PRODUCTION__4F014E1A6570667A5316__CONF__);Object.defineProperty(window,"__PRODUCTION__4F014E1A6570667A5316__CONF__",{configurable:false,writable:false,});

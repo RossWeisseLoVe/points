@@ -1,0 +1,45 @@
+HELP.md
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+!flow-form/form-designer-ui/dist
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+.mvn/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+
+
+### VS Code ###
+.vscode/
+
+application-local.properties
+application-test.properties
+application-prod.properties
+clean-deploy-all-local.bat
+
+### LOG ###
+/logPath_IS_UNDEFINED
+

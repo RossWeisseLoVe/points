@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dragon.flow.mapper.customer.ClientMapper">
+
+    <resultMap id="BaseResultMap" type="com.dragon.flow.model.customer.Client">
+            <id property="id" column="id" jdbcType="VARCHAR"/>
+            <result property="name" column="name" jdbcType="VARCHAR"/>
+            <result property="mobile" column="mobile" jdbcType="VARCHAR"/>
+            <result property="email" column="email" jdbcType="VARCHAR"/>
+            <result property="address" column="address" jdbcType="VARCHAR"/>
+            <result property="company" column="company" jdbcType="VARCHAR"/>
+            <result property="industry" column="industry" jdbcType="VARCHAR"/>
+            <result property="representative" column="representative" jdbcType="VARCHAR"/>
+            <result property="remarks" column="remarks" jdbcType="VARCHAR"/>
+            <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+            <result property="creator" column="creator" jdbcType="VARCHAR"/>
+            <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+            <result property="updator" column="updator" jdbcType="VARCHAR"/>
+            <result property="delFlag" column="del_flag" jdbcType="INTEGER"/>
+            <result property="type" column="type" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,name,mobile,
+        email,address,company,
+        industry,representative,customer_type,
+        remarks,create_time,creator,
+        update_time,updator,del_flag
+    </sql>
+
+    <select id="getPageModal" resultType="com.dragon.flow.vo.customer.ClientVo">
+        select t1.*, t2.real_name creatorName, t3.real_name updatorName,t4.real_name representativeName,t5.points point from tbl_customer_client t1
+        left join tbl_privilege_user t2
+        on t1.creator = t2.id
+        left join tbl_privilege_user t3
+        on t1.updator = t3.id
+        left join tbl_privilege_user t4
+        on t1.representative = t4.id
+        left join tbl_customer_point t5
+        on t1.id = t5.cid
+        where t1.del_flag = 1
+        <if test="entity.type!=null">
+            and t1.type = #{entity.type}
+        </if>
+        <if test="entity.keyword!=null and entity.keyword!=''">
+            and t1.name like concat('%', #{entity.keyword}, '%')
+        </if>
+    </select>
+</mapper>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <groupId>com.dragon</groupId>
+        <artifactId>flow-parent</artifactId>
+        <version>1.1.2-SNAPSHOT</version>
+        <relativePath></relativePath>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <version>${flow.version}</version>
+    <artifactId>flow-form-rest</artifactId>
+    <packaging>jar</packaging>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.dragon</groupId>
+            <artifactId>flow-form-core</artifactId>
+            <version>${flow.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.dragon</groupId>
+            <artifactId>flow-admin-rest</artifactId>
+            <version>${flow.version}</version>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
+    <build>
+        <finalName>flow-form-core</finalName>
+        <resources>
+            <resource>
+                <directory>${project.basedir}/src/main/java</directory>
+                <includes>
+                    <include>**/*.xml</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/src/main/resources</directory>
+            </resource>
+        </resources>
+    </build>
+</project>
