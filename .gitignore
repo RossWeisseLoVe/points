@@ -35,7 +35,6 @@ target/
 ### VS Code ###
 .vscode/
 
-application-local.properties
 application-test.properties
 application-prod.properties
 clean-deploy-all-local.bat
