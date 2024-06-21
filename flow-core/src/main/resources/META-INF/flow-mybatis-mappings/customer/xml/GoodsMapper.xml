@@ -34,7 +34,7 @@
         left join tbl_privilege_user t3
                   on t1.updator = t3.id
         where t1.del_flag = 1
-        <if test="entity.type!=null">
+        <if test="entity.type!=null and entity.type!=''">
             and t1.type = #{entity.type}
         </if>
         <if test="entity.keyword!=null and entity.keyword!=''">

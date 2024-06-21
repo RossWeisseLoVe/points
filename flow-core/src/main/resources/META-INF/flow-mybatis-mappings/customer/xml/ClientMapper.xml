@@ -41,7 +41,7 @@
         left join tbl_customer_point t5
         on t1.id = t5.cid
         where t1.del_flag = 1
-        <if test="entity.type!=null">
+        <if test="entity.type!=null and entity.type!=''">
             and t1.type = #{entity.type}
         </if>
         <if test="entity.keyword!=null and entity.keyword!=''">
