@@ -36,4 +36,8 @@ public class Activity extends BaseModel implements Serializable {
      * 类型
      */
     private String type;
+    /**
+     * 参与次数上线
+     */
+    private Integer max;
 }

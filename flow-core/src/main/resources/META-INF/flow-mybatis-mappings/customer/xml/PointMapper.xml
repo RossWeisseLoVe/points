@@ -21,4 +21,9 @@
         create_time,creator,update_time,
         updator,del_flag,version
     </sql>
+    <update id="updatePoint">
+        update tbl_customer_point
+        set points = points + #{point}
+        where cid = #{cid}
+    </update>
 </mapper>

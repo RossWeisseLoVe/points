@@ -25,17 +25,13 @@ public class Orders extends BaseModel implements Serializable {
      */
     private String cid;
     /**
-     * 积分表id
-     */
-    private String pid;
-    /**
      * 订单类型
      */
     private Integer orderType;
     /**
      * 增加积分的活动类型
      */
-    private Integer addType;
+    private String addType;
     /**
      * 扣除、消耗积分的操作类型
      */
@@ -52,4 +48,8 @@ public class Orders extends BaseModel implements Serializable {
      * 单次订单内的物品数量
      */
     private Integer num;
+    /**
+     * 积分
+     */
+    private Integer point;
 }

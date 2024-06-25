@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dragon.flow.mapper.customer.OrdersMapper">
+
+    <resultMap id="BaseResultMap" type="com.dragon.flow.model.customer.Orders">
+            <id property="id" column="id" jdbcType="VARCHAR"/>
+            <result property="cid" column="cid" jdbcType="VARCHAR"/>
+            <result property="orderType" column="order_type" jdbcType="INTEGER"/>
+            <result property="addType" column="add_type" jdbcType="VARCHAR"/>
+            <result property="decreaseType" column="decrease_type" jdbcType="INTEGER"/>
+            <result property="instructions" column="instructions" jdbcType="VARCHAR"/>
+            <result property="point" column="point" jdbcType="INTEGER"/>
+            <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+            <result property="creator" column="creator" jdbcType="VARCHAR"/>
+            <result property="cancelFlag" column="cancel_flag" jdbcType="INTEGER"/>
+            <result property="num" column="num" jdbcType="INTEGER"/>
+            <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+            <result property="updator" column="updator" jdbcType="VARCHAR"/>
+            <result property="delFlag" column="del_flag" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,cid,pid,
+        order_type,add_type,decrease_type,
+        instructions,point,create_time,
+        creator,cancel_flag,num
+    </sql>
+</mapper>

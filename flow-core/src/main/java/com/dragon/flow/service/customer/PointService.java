@@ -10,4 +10,5 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface PointService extends IService<Point> {
 
+    boolean updatePoint(String cid, Integer point);
 }
