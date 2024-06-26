@@ -27,4 +27,12 @@
         instructions,point,create_time,
         creator,cancel_flag,num
     </sql>
+
+    <select id="getPagerModal" resultType="com.dragon.flow.model.customer.Orders">
+        select * from tbl_customer_orders
+        where cid = #{entity.cid}
+        <if test="entity.keyword!=null and entity.keyword!=''">
+            and t1.name like concat('%', #{entity.keyword}, '%')
+        </if>
+    </select>
 </mapper>

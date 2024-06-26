@@ -2,12 +2,15 @@ package com.dragon.flow.web.resource.customer;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.dragon.flow.model.customer.Activity;
+import com.dragon.flow.model.customer.Goods;
 import com.dragon.flow.model.customer.Orders;
 import com.dragon.flow.service.customer.ActivityService;
 import com.dragon.flow.service.customer.OrdersService;
 import com.dragon.flow.service.customer.PointService;
+import com.dragon.flow.vo.pager.ParamVo;
 import com.dragon.flow.web.resource.BaseResource;
 import com.dragon.tools.common.ReturnCode;
+import com.dragon.tools.pager.PagerModel;
 import com.dragon.tools.vo.ReturnVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +53,14 @@ public class OrdersResource extends BaseResource<Orders> {
         ordersLambdaQueryWrapper.eq(Orders::getCid,uid).eq(Orders::getAddType,aid);
         long count = ordersService.count(ordersLambdaQueryWrapper);
         return new ReturnVo<Long>(ReturnCode.SUCCESS,"查询成功",count);
+    }
+
+
+    @PostMapping("page")
+    public ReturnVo<PagerModel<Orders>> getHistoryPage(@RequestBody ParamVo<Orders> param){
+        PagerModel<Orders> page = ordersService.getPagerModal(param.getEntity(),param.getQuery());
+        ReturnVo<PagerModel<Orders>> pagerModelReturnVo = new ReturnVo<>(ReturnCode.SUCCESS,"查询成功",page);
+        return pagerModelReturnVo;
     }
 
 }

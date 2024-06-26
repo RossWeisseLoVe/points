@@ -2,6 +2,8 @@ package com.dragon.flow.service.customer;
 
 import com.dragon.flow.model.customer.Orders;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.dragon.tools.pager.PagerModel;
+import com.dragon.tools.pager.Query;
 
 /**
 * @author IRDC-Front
@@ -10,4 +12,5 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface OrdersService extends IService<Orders> {
 
+    PagerModel<Orders> getPagerModal(Orders entity, Query query);
 }

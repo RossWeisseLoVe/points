@@ -1,5 +1,6 @@
 package com.dragon.flow.mapper.customer;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.dragon.flow.model.customer.Orders;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.springframework.stereotype.Repository;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface OrdersMapper extends BaseMapper<Orders> {
 
+    IPage<Orders> getPagerModal(IPage<Orders> ordersPage, Orders entity);
 }
 
 
