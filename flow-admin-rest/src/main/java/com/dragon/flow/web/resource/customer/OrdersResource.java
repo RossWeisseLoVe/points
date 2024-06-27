@@ -34,11 +34,12 @@ public class OrdersResource extends BaseResource<Orders> {
     public ReturnVo save(@RequestBody Orders orders){
         orders.setOrderType(1);
         orders.setCancelFlag(0);
-        ordersService.save(orders);
         LambdaQueryWrapper<Activity> activityLambdaQueryWrapper = new LambdaQueryWrapper<>();
         activityLambdaQueryWrapper.eq(Activity::getId,orders.getAddType());
         Activity one = activityService.getOne(activityLambdaQueryWrapper);
         Integer point = one.getPoint();
+        orders.setPoint(point);
+        ordersService.save(orders);
         pointService.updatePoint(orders.getCid(),point);
         return new ReturnVo(ReturnCode.SUCCESS,"保存成功");
     }

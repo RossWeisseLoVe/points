@@ -28,11 +28,22 @@
         creator,cancel_flag,num
     </sql>
 
-    <select id="getPagerModal" resultType="com.dragon.flow.model.customer.Orders">
-        select * from tbl_customer_orders
-        where cid = #{entity.cid}
+    <select id="getPagerModal" resultType="com.dragon.flow.vo.customer.OrdersVo">
+        select t1.*, t2.name as name,t3.name as activityName,t3.type as activityType, t4.type as goodsType, t4.name as goodsName, t5.real_name as creatorName
+        from tbl_customer_orders t1
+        left join tbl_customer_client t2 on t1.cid = t2.id
+        left join tbl_customer_activity t3 on t1.add_type = t3.id
+        left join tbl_customer_goods t4 on t1.decrease_type = t4.id
+        left join tbl_privilege_user t5 on t1.creator = t5.id
+        where t1.cid = #{entity.cid}
         <if test="entity.keyword!=null and entity.keyword!=''">
-            and t1.name like concat('%', #{entity.keyword}, '%')
+            and t2.name like concat('%', #{entity.keyword}, '%')
+        </if>
+        <if test="entity.sortType!=null and entity.sortType==1">
+            order by t1.create_time ASC
+        </if>
+        <if test="entity.sortType!=null and entity.sortType==2">
+            order by t1.create_time DESC
         </if>
     </select>
 </mapper>

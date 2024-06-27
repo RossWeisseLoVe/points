@@ -1,6 +1,7 @@
 package com.dragon.flow.model.customer;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.dragon.tools.common.BaseModel;
@@ -52,4 +53,9 @@ public class Orders extends BaseModel implements Serializable {
      * 积分
      */
     private Integer point;
+    /**
+     * 排序方式
+     */
+    @TableField(exist = false)
+    private Integer sortType;
 }
