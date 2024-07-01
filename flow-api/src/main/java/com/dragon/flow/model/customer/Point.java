@@ -29,10 +29,6 @@ public class Point extends BaseModel implements Serializable {
      */
     private Integer points;
     /**
-     * 备注
-     */
-    private String remark;
-    /**
      * 版本
      */
     @Version

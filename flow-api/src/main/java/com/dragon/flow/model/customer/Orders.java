@@ -36,7 +36,7 @@ public class Orders extends BaseModel implements Serializable {
     /**
      * 扣除、消耗积分的操作类型
      */
-    private Integer decreaseType;
+    private String decreaseType;
     /**
      * 说明、若自由添加、直接扣减、清除积分则必填说明
      */

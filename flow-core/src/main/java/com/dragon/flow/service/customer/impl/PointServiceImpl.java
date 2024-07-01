@@ -24,6 +24,11 @@ public class PointServiceImpl extends ServiceImpl<PointMapper, Point>
     public boolean updatePoint(String cid, Integer point) {
         return pointMapper.updatePoint(cid,point);
     }
+
+    @Override
+    public boolean decreasePoint(String cid, Integer point) {
+        return pointMapper.decreasePoint(cid,point);
+    }
 }
 
 

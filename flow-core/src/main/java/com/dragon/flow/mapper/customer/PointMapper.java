@@ -14,6 +14,8 @@ import org.springframework.stereotype.Repository;
 public interface PointMapper extends BaseMapper<Point> {
 
     boolean updatePoint(String cid, Integer point);
+
+    boolean decreasePoint(String cid, Integer point);
 }
 
 

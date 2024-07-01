@@ -46,4 +46,9 @@
             order by t1.create_time DESC
         </if>
     </select>
+    <select id="sumTimes" resultType="java.lang.Long">
+        select sum(num) from tbl_customer_orders
+        where cid = #{cid}
+        and decrease_type = #{gid}
+    </select>
 </mapper>

@@ -22,6 +22,7 @@ import java.util.List;
 public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders>
     implements OrdersService {
 
+
     @Autowired
     private OrdersMapper ordersMapper;
 
@@ -32,6 +33,12 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders>
         PagerModel<Orders> ordersPagerModel = new PagerModel<>(page.getTotal(), page.getRecords());
         return ordersPagerModel;
     }
+
+    @Override
+    public long sumTimes(String uid, String gid) {
+        return ordersMapper.sumTimes(uid,gid);
+    }
+
 }
 
 

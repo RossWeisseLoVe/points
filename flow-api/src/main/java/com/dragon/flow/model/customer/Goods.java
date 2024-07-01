@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.dragon.tools.common.BaseModel;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import io.swagger.models.auth.In;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -29,7 +30,7 @@ public class Goods extends BaseModel implements Serializable {
     /**
      * 积分
      */
-    private String point;
+    private Integer point;
     /**
      * 备注
      */

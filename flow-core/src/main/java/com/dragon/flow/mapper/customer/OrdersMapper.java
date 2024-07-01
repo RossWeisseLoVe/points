@@ -15,6 +15,8 @@ import org.springframework.stereotype.Repository;
 public interface OrdersMapper extends BaseMapper<Orders> {
 
     IPage<Orders> getPagerModal(IPage<Orders> ordersPage, Orders entity);
+
+    long sumTimes(String uid, String gid);
 }
 
 

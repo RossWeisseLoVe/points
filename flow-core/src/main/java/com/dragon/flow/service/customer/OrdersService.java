@@ -13,4 +13,6 @@ import com.dragon.tools.pager.Query;
 public interface OrdersService extends IService<Orders> {
 
     PagerModel<Orders> getPagerModal(Orders entity, Query query);
+
+    long sumTimes(String uid, String gid);
 }

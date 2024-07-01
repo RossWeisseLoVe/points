@@ -26,4 +26,9 @@
         set points = points + #{point}
         where cid = #{cid}
     </update>
+    <update id="decreasePoint">
+        update tbl_customer_point
+        set points = points - #{point}
+        where cid = #{cid}
+    </update>
 </mapper>
