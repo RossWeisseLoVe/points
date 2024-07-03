@@ -6,11 +6,16 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.dragon.flow.model.customer.Orders;
 import com.dragon.flow.service.customer.OrdersService;
 import com.dragon.flow.mapper.customer.OrdersMapper;
+import com.dragon.flow.vo.customer.HomeVo;
+import com.dragon.flow.vo.customer.PointVo;
 import com.dragon.tools.pager.PagerModel;
 import com.dragon.tools.pager.Query;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -32,6 +37,32 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders>
         IPage<Orders> page = ordersMapper.getPagerModal(ordersPage,entity);
         PagerModel<Orders> ordersPagerModel = new PagerModel<>(page.getTotal(), page.getRecords());
         return ordersPagerModel;
+    }
+
+    @Override
+    public HomeVo getHomeData() {
+        HomeVo homeVo = new HomeVo();
+        List<PointVo> pointVo =  ordersMapper.getTotalData();
+        pointVo.forEach((item)->{
+            if(item.getOrderType().equals(1)){
+                homeVo.setTotalPointOut(item.getPoint());
+            }else{
+                homeVo.setTotalPointIn(item.getPoint());
+            }
+        });
+        LocalDate currentDate = LocalDate.now();
+        YearMonth currentYearMonth = YearMonth.from(currentDate);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM");
+        String formattedYearMonth = currentYearMonth.format(formatter);
+        List<PointVo> pointVoMonth = ordersMapper.getMonthData(formattedYearMonth);
+        pointVoMonth.forEach((item)->{
+            if(item.getOrderType().equals(1)){
+                homeVo.setMonthPointOut(item.getPoint());
+            }else{
+                homeVo.setMonthPointIn(item.getPoint());
+            }
+        });
+        return homeVo;
     }
 
     @Override

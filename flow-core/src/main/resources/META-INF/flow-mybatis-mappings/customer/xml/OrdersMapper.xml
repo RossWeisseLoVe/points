@@ -59,4 +59,13 @@
         where cid = #{uid}
         and decrease_type = #{gid}
     </select>
+    <select id="getTotalData" resultType="com.dragon.flow.vo.customer.PointVo">
+        SELECT sum(point) as point,order_type FROM tbl_customer_orders GROUP BY order_type
+    </select>
+    <select id="getMonthData" resultType="com.dragon.flow.vo.customer.PointVo">
+        SELECT sum(point) as point,order_type
+        FROM tbl_customer_orders
+        WHERE create_time like CONCAT(#{formattedYearMonth}, '%')
+        GROUP BY order_type
+    </select>
 </mapper>

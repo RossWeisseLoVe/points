@@ -3,7 +3,10 @@ package com.dragon.flow.mapper.customer;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.dragon.flow.model.customer.Orders;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.dragon.flow.vo.customer.PointVo;
 import org.springframework.stereotype.Repository;
+
+import java.util.List;
 
 /**
 * @author IRDC-Front
@@ -17,6 +20,10 @@ public interface OrdersMapper extends BaseMapper<Orders> {
     IPage<Orders> getPagerModal(IPage<Orders> ordersPage, Orders entity);
 
     long sumTimes(String uid, String gid);
+
+    List<PointVo> getTotalData();
+
+    List<PointVo> getMonthData(String formattedYearMonth);
 }
 
 

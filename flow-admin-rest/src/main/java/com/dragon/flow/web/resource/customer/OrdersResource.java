@@ -9,6 +9,7 @@ import com.dragon.flow.service.customer.ActivityService;
 import com.dragon.flow.service.customer.GoodsService;
 import com.dragon.flow.service.customer.OrdersService;
 import com.dragon.flow.service.customer.PointService;
+import com.dragon.flow.vo.customer.HomeVo;
 import com.dragon.flow.vo.pager.ParamVo;
 import com.dragon.flow.web.resource.BaseResource;
 import com.dragon.tools.common.ReturnCode;
@@ -117,4 +118,13 @@ public class OrdersResource extends BaseResource<Orders> {
         return pagerModelReturnVo;
     }
 
+    /**
+     * 查询首页数据
+     * @return
+     */
+    @GetMapping("getHomeData")
+    public ReturnVo<HomeVo> getHomeData(){
+        HomeVo homeVo = ordersService.getHomeData();
+        return new ReturnVo<>(ReturnCode.SUCCESS,"查询成功",homeVo);
+    }
 }
