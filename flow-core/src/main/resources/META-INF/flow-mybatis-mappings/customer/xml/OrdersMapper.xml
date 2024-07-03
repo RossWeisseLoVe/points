@@ -35,7 +35,15 @@
         left join tbl_customer_activity t3 on t1.add_type = t3.id
         left join tbl_customer_goods t4 on t1.decrease_type = t4.id
         left join tbl_privilege_user t5 on t1.creator = t5.id
-        where t1.cid = #{entity.cid}
+        <if test="entity.cid!=null">
+            where t1.cid = #{entity.cid}
+        </if>
+        <if test="entity.addType!=null">
+            where t1.add_type = #{entity.addType}
+        </if>
+        <if test="entity.decreaseType!=null">
+            where t1.decrease_type = #{entity.decreaseType}
+        </if>
         <if test="entity.keyword!=null and entity.keyword!=''">
             and t2.name like concat('%', #{entity.keyword}, '%')
         </if>
@@ -47,8 +55,8 @@
         </if>
     </select>
     <select id="sumTimes" resultType="java.lang.Long">
-        select sum(num) from tbl_customer_orders
-        where cid = #{cid}
+        select ifnull(sum(num),0) from tbl_customer_orders
+        where cid = #{uid}
         and decrease_type = #{gid}
     </select>
 </mapper>

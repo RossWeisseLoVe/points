@@ -7,10 +7,7 @@ import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.pager.PagerModel;
 import com.dragon.tools.vo.ReturnVo;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/flow/customer/goods")
@@ -32,6 +29,7 @@ public class GoodsResource {
     @PostMapping("add")
     public ReturnVo addGoods(@RequestBody Goods goods){
         goods.setStatus(0);
+        goods.setTimedStatus(1);
         goodsService.save(goods);
         return new ReturnVo(ReturnCode.SUCCESS,"新增成功");
     }
@@ -40,6 +38,15 @@ public class GoodsResource {
     public ReturnVo updateGoods(@RequestBody Goods goods){
         goodsService.updateById(goods);
         return new ReturnVo(ReturnCode.SUCCESS,"修改成功");
+    }
+
+    @GetMapping("setTimedStatus/{id}/{status}")
+    public ReturnVo setTimedStatus(@PathVariable String id,@PathVariable Integer status){
+        Goods goods = goodsService.getById(id);
+        goods.setTimedStatus(status);
+        goodsService.updateById(goods);
+        return new ReturnVo(ReturnCode.SUCCESS,"修改成功");
+        //TODO:定时发布的功能
     }
 
 }

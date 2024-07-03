@@ -43,11 +43,14 @@ public class OrdersResource extends BaseResource<Orders> {
     public ReturnVo save(@RequestBody Orders orders){
         orders.setOrderType(1);
         orders.setCancelFlag(0);
+        orders.setNum(1);
         LambdaQueryWrapper<Activity> activityLambdaQueryWrapper = new LambdaQueryWrapper<>();
         activityLambdaQueryWrapper.eq(Activity::getId,orders.getAddType());
         Activity one = activityService.getOne(activityLambdaQueryWrapper);
         Integer point = one.getPoint();
         orders.setPoint(point);
+        one.setInventory(one.getInventory()-1);
+        activityService.updateById(one);
         ordersService.save(orders);
         pointService.updatePoint(orders.getCid(),point);
         return new ReturnVo(ReturnCode.SUCCESS,"保存成功");
@@ -74,6 +77,8 @@ public class OrdersResource extends BaseResource<Orders> {
         }
         orders.setPoint(point);
         ordersService.save(orders);
+        one.setInventory(one.getInventory()- orders.getNum());
+        goodsService.updateById(one);
         pointService.decreasePoint(orders.getCid(),point);
         return new ReturnVo(ReturnCode.SUCCESS,"保存成功");
 
@@ -101,7 +106,10 @@ public class OrdersResource extends BaseResource<Orders> {
         return new ReturnVo<Long>(ReturnCode.SUCCESS,"查询成功",count);
     }
 
-
+    /**
+     * 查询历史记录
+     * @return
+     */
     @PostMapping("page")
     public ReturnVo<PagerModel<Orders>> getHistoryPage(@RequestBody ParamVo<Orders> param){
         PagerModel<Orders> page = ordersService.getPagerModal(param.getEntity(),param.getQuery());

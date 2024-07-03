@@ -1,6 +1,7 @@
 package com.dragon.flow.model.customer;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.dragon.tools.common.BaseModel;
@@ -60,6 +61,10 @@ public class Goods extends BaseModel implements Serializable {
      */
     private Integer status;
     /**
+     * 定时上架状态
+     */
+    private Integer timedStatus;
+    /**
      * 上架时间
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
@@ -69,4 +74,9 @@ public class Goods extends BaseModel implements Serializable {
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date endTime;
+    /**
+     * 是否只查询上架状态的
+     */
+    @TableField(exist = false)
+    private boolean onlyOnsale;
 }

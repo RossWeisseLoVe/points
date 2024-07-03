@@ -2,6 +2,7 @@ package com.dragon.flow.web.resource.customer;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.dragon.flow.model.customer.Activity;
+import com.dragon.flow.model.customer.Goods;
 import com.dragon.flow.service.customer.ActivityService;
 import com.dragon.flow.vo.pager.ParamVo;
 import com.dragon.flow.web.resource.BaseResource;
@@ -9,10 +10,7 @@ import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.pager.PagerModel;
 import com.dragon.tools.vo.ReturnVo;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/flow/customer/activity")
@@ -41,6 +39,8 @@ public class ActivityResource extends BaseResource<Activity> {
      */
     @PostMapping("/addActivity")
     public ReturnVo addActivity(@RequestBody Activity activity){
+        activity.setStatus(0);
+        activity.setTimedStatus(1);
         activityService.save(activity);
         ReturnVo<Page<Activity>> returnVo = new ReturnVo<>(ReturnCode.SUCCESS,"新增成功");
         return returnVo;
@@ -68,6 +68,15 @@ public class ActivityResource extends BaseResource<Activity> {
         activityService.deleteActivityByIds(ids);
         ReturnVo<Page<Activity>> returnVo = new ReturnVo<>(ReturnCode.SUCCESS,"删除成功");
         return returnVo;
+    }
+
+    @GetMapping("setTimedStatus/{id}/{status}")
+    public ReturnVo activityService(@PathVariable String id,@PathVariable Integer status){
+        Activity activity = activityService.getById(id);
+        activity.setTimedStatus(status);
+        activityService.updateById(activity);
+        return new ReturnVo(ReturnCode.SUCCESS,"修改成功");
+        //TODO:定时发布的功能
     }
 
 }

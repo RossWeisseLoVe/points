@@ -36,7 +36,8 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders>
 
     @Override
     public long sumTimes(String uid, String gid) {
-        return ordersMapper.sumTimes(uid,gid);
+        long l = ordersMapper.sumTimes(uid, gid);
+        return l;
     }
 
 }

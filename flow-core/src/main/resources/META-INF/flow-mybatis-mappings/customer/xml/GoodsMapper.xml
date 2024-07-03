@@ -40,5 +40,8 @@
         <if test="entity.keyword!=null and entity.keyword!=''">
             and t1.name like concat('%', #{entity.keyword}, '%')
         </if>
+        <if test="entity.onlyOnsale== true">
+            and t1.status in (1,3)
+        </if>
     </select>
 </mapper>

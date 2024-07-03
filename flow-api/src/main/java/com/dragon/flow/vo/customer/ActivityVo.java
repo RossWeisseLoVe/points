@@ -17,4 +17,5 @@ public class ActivityVo extends Activity implements Serializable {
      * 编辑人名称
      */
     private String updatorName;
+
 }
