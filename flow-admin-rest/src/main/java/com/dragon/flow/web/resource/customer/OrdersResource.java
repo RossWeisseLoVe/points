@@ -9,6 +9,8 @@ import com.dragon.flow.service.customer.ActivityService;
 import com.dragon.flow.service.customer.GoodsService;
 import com.dragon.flow.service.customer.OrdersService;
 import com.dragon.flow.service.customer.PointService;
+import com.dragon.flow.vo.customer.GoodsTypeVo;
+import com.dragon.flow.vo.customer.GoodsVo;
 import com.dragon.flow.vo.customer.HomeVo;
 import com.dragon.flow.vo.pager.ParamVo;
 import com.dragon.flow.web.resource.BaseResource;
@@ -18,6 +20,8 @@ import com.dragon.tools.vo.ReturnVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/flow/customer/orders")
@@ -127,4 +131,15 @@ public class OrdersResource extends BaseResource<Orders> {
         HomeVo homeVo = ordersService.getHomeData();
         return new ReturnVo<>(ReturnCode.SUCCESS,"查询成功",homeVo);
     }
+
+    /**
+     * 查询首页数据-兑换分析
+     * @return
+     */
+    @GetMapping("getExchangeAnalysis")
+    public ReturnVo<List<GoodsTypeVo>> getExchangeAnalysis(){
+        List<GoodsTypeVo> list = ordersService.getExchangeAnalysis();
+        return new ReturnVo<>(ReturnCode.SUCCESS,"查询成功",list);
+    }
+
 }

@@ -2,12 +2,15 @@ package com.dragon.flow.web.resource.customer;
 
 import com.dragon.flow.model.customer.Goods;
 import com.dragon.flow.service.customer.GoodsService;
+import com.dragon.flow.vo.customer.GoodsVo;
 import com.dragon.flow.vo.pager.ParamVo;
 import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.pager.PagerModel;
 import com.dragon.tools.vo.ReturnVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/flow/customer/goods")
@@ -48,5 +51,6 @@ public class GoodsResource {
         return new ReturnVo(ReturnCode.SUCCESS,"修改成功");
         //TODO:定时发布的功能
     }
+
 
 }

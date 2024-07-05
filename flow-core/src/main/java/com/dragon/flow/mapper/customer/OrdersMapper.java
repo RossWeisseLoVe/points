@@ -3,6 +3,7 @@ package com.dragon.flow.mapper.customer;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.dragon.flow.model.customer.Orders;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.dragon.flow.vo.customer.GoodsTypeVo;
 import com.dragon.flow.vo.customer.PointVo;
 import org.springframework.stereotype.Repository;
 
@@ -24,6 +25,8 @@ public interface OrdersMapper extends BaseMapper<Orders> {
     List<PointVo> getTotalData();
 
     List<PointVo> getMonthData(String formattedYearMonth);
+
+    List<GoodsTypeVo> getExchangeAnalysis();
 }
 
 

@@ -68,4 +68,13 @@
         WHERE create_time like CONCAT(#{formattedYearMonth}, '%')
         GROUP BY order_type
     </select>
+    <select id="getExchangeAnalysis" resultType="com.dragon.flow.vo.customer.GoodsTypeVo">
+        select SUM(t1.point) AS point,t3.cname as cname,t3.id as id,t3.color as color from tbl_customer_orders t1
+        LEFT JOIN tbl_customer_goods t2
+        ON t1.decrease_type = t2.id
+        LEFT JOIN tbl_base_dic_item t3
+        ON t2.type = t3.id
+        WHERE t1.decrease_type IS NOT NULL
+        GROUP BY t3.id
+    </select>
 </mapper>

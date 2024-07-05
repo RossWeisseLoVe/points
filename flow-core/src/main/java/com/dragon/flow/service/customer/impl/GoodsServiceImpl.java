@@ -7,6 +7,7 @@ import com.dragon.flow.model.customer.Activity;
 import com.dragon.flow.model.customer.Goods;
 import com.dragon.flow.service.customer.GoodsService;
 import com.dragon.flow.mapper.customer.GoodsMapper;
+import com.dragon.flow.vo.customer.GoodsVo;
 import com.dragon.tools.pager.PagerModel;
 import com.dragon.tools.pager.Query;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,7 @@ public class GoodsServiceImpl extends ServiceImpl<GoodsMapper, Goods>
         PagerModel<Goods> goodsPagerModel = new PagerModel<>(page.getTotal(), list);
         return goodsPagerModel;
     }
+
 }
 
 

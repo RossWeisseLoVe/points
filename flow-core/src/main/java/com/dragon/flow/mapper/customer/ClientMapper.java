@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.springframework.stereotype.Repository;
 
 import javax.swing.text.html.parser.Entity;
+import java.util.List;
 
 /**
 * @author IRDC-Front
@@ -17,6 +18,10 @@ import javax.swing.text.html.parser.Entity;
 public interface ClientMapper extends BaseMapper<Client> {
 
     IPage<Client> getPageModal(IPage<Client> clientPage, Client entity);
+
+    List<Client> getUserPointTopTen();
+
+    List<Client> getUserPointUsedTopTen(Integer status);
 }
 
 

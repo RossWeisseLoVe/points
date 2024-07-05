@@ -9,10 +9,9 @@ import com.dragon.tools.pager.PagerModel;
 import com.dragon.tools.vo.ReturnVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/flow/customer/client")
@@ -53,6 +52,18 @@ public class ClientResource extends BaseResource<Client> {
         }else{
             return new ReturnVo<>(ReturnCode.FAIL,"更新失败");
         }
+    }
+
+    @GetMapping("getUserPointTopTen")
+    public ReturnVo<List<Client>> getUserPointTopTen(){
+        List<Client> list = clientService.getUserPointTopTen();
+        return new ReturnVo<>(ReturnCode.SUCCESS,"查询成功",list);
+    }
+
+    @GetMapping("getUserPointUsedTopTen/{status}")
+    public ReturnVo<List<Client>> getUserPointUsedTopTen(@PathVariable Integer status){
+        List<Client> list = clientService.getUserPointUsedTopTen(status);
+        return new ReturnVo<>(ReturnCode.SUCCESS,"查询成功",list);
     }
 
 }

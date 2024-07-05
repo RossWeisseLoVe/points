@@ -44,8 +44,25 @@
         <if test="entity.type!=null and entity.type!=''">
             and t1.type = #{entity.type}
         </if>
+        <if test="entity.representative!=null and entity.representative!=''">
+            and t1.representative = #{entity.representative}
+        </if>
         <if test="entity.keyword!=null and entity.keyword!=''">
             and t1.name like concat('%', #{entity.keyword}, '%')
         </if>
+    </select>
+    <select id="getUserPointTopTen" resultType="com.dragon.flow.vo.customer.ClientVo">
+        SELECT t1.*,t2.points as point from tbl_customer_client t1
+        LEFT JOIN tbl_customer_point t2
+        ON t1.id = t2.cid
+        ORDER BY t2.points DESC LIMIT 10
+    </select>
+    <select id="getUserPointUsedTopTen" resultType="com.dragon.flow.vo.customer.ClientVo">
+        SELECT t1.*,IFNULL(t2.point,0) as point FROM tbl_customer_client t1
+        LEFT JOIN (SELECT SUM(point) as point,cid FROM tbl_customer_orders WHERE order_type = #{status} GROUP BY cid) t2
+        ON t1.id = t2.cid
+        ORDER BY t2.point
+        DESC
+        LIMIT 10
     </select>
 </mapper>

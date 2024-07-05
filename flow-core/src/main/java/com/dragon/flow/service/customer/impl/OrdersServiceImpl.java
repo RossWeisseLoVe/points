@@ -3,9 +3,12 @@ package com.dragon.flow.service.customer.impl;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.dragon.flow.mapper.customer.GoodsMapper;
 import com.dragon.flow.model.customer.Orders;
 import com.dragon.flow.service.customer.OrdersService;
 import com.dragon.flow.mapper.customer.OrdersMapper;
+import com.dragon.flow.vo.customer.GoodsTypeVo;
+import com.dragon.flow.vo.customer.GoodsVo;
 import com.dragon.flow.vo.customer.HomeVo;
 import com.dragon.flow.vo.customer.PointVo;
 import com.dragon.tools.pager.PagerModel;
@@ -71,6 +74,10 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders>
         return l;
     }
 
+    @Override
+    public List<GoodsTypeVo> getExchangeAnalysis() {
+        return ordersMapper.getExchangeAnalysis();
+    }
 }
 
 

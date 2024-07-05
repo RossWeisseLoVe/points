@@ -35,6 +35,16 @@ public class ClientServiceImpl extends ServiceImpl<ClientMapper, Client>
     private PointService pointService;
 
     @Override
+    public List<Client> getUserPointTopTen() {
+        return clientMapper.getUserPointTopTen();
+    }
+
+    @Override
+    public List<Client> getUserPointUsedTopTen(Integer status) {
+        return clientMapper.getUserPointUsedTopTen(status);
+    }
+
+    @Override
     public PagerModel<Client> getPageModal(Client entity, Query query) {
         IPage<Client> clientPage = new Page<>(query.getPageNum(),query.getPageSize());
         IPage<Client> page = clientMapper.getPageModal(clientPage,entity);

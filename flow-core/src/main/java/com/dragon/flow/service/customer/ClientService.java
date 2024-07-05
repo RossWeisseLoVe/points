@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.dragon.tools.pager.PagerModel;
 import com.dragon.tools.pager.Query;
 
+import java.util.List;
+
 /**
 * @author IRDC-Front
 * @description 针对表【tbl_customer_client】的数据库操作Service
@@ -17,4 +19,8 @@ public interface ClientService extends IService<Client> {
     PagerModel<Client> getPageModal(Client entity, Query query);
 
     void deleteByIds(String[] ids);
+
+    List<Client> getUserPointTopTen();
+
+    List<Client> getUserPointUsedTopTen(Integer status);
 }

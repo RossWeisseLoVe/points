@@ -2,9 +2,13 @@ package com.dragon.flow.service.customer;
 
 import com.dragon.flow.model.customer.Orders;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.dragon.flow.vo.customer.GoodsTypeVo;
+import com.dragon.flow.vo.customer.GoodsVo;
 import com.dragon.flow.vo.customer.HomeVo;
 import com.dragon.tools.pager.PagerModel;
 import com.dragon.tools.pager.Query;
+
+import java.util.List;
 
 /**
 * @author IRDC-Front
@@ -18,4 +22,6 @@ public interface OrdersService extends IService<Orders> {
     long sumTimes(String uid, String gid);
 
     HomeVo getHomeData();
+
+    List<GoodsTypeVo> getExchangeAnalysis();
 }
