@@ -6,10 +6,10 @@
         <groupId>com.dragon</groupId>
         <artifactId>flow-parent</artifactId>
         <version>1.1.2-SNAPSHOT</version>
-        <relativePath></relativePath>
+        <relativePath>../flow-parent</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
-    <version>${flow.version}</version>
+    <version>1.1.2-SNAPSHOT</version>
     <packaging>jar</packaging>
     <artifactId>flow-extension</artifactId>
     <properties>

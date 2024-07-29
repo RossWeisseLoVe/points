@@ -22,9 +22,9 @@
         <module>flow-dubbo</module>
         <module>flow-springcloud</module>
         <module>flow-form</module>
-		<module>flow-form/flow-form-api</module>
-		<module>flow-form/flow-form-core</module>
-		<module>flow-form/flow-form-rest</module>
+<!--		<module>flow-form/flow-form-api</module>-->
+<!--		<module>flow-form/flow-form-core</module>-->
+<!--		<module>flow-form/flow-form-rest</module>-->
 	</modules>
 	<build>
 		<plugins>
