@@ -55,6 +55,7 @@ public class GoodsResource {
         goodsService.updateById(goods);
         Date now = new Date();
         long diff = goods.getStartTime().getTime() - now.getTime();
+        System.out.println("1233213123123123");
         if(diff/1000<3){
             //如果上架时间不足3秒以及已经超过上架时间，则直接上架
 
