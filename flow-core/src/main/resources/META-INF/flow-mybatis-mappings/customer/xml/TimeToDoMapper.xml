@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dragon.flow.mapper.customer.TimeToDoMapper">
+
+    <resultMap id="BaseResultMap" type="com.dragon.flow.model.customer.TimeToDo">
+            <id property="id" column="id" jdbcType="VARCHAR"/>
+            <result property="type" column="type" jdbcType="INTEGER"/>
+            <result property="fid" column="fid" jdbcType="VARCHAR"/>
+            <result property="creator" column="creator" jdbcType="VARCHAR"/>
+            <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+            <result property="updator" column="updator" jdbcType="VARCHAR"/>
+            <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+            <result property="delFlag" column="del_flag" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,type,fid,
+        creator,create_time,updator,
+        update_time,del_flag
+    </sql>
+</mapper>
