@@ -23,6 +23,17 @@ public class TimeToDoServiceImpl extends ServiceImpl<TimeToDoMapper, TimeToDo>
     @Autowired
     private RedisTemplate<String,Object> redisTemplate;
 
+    @Autowired
+    private  TimeToDoMapper timeToDoMapper;
+
+    /**
+     * 获取所有的区域
+     * @param id
+     * @param type 0是奖品 1是活动
+     * @param time key过期时间
+     * @param timeType 开始时间或者结束时间
+     * @return
+     */
     @Override
     public void sendDelayedTask(String id, Integer type, Date time,String timeType) {
         Date now = new Date();

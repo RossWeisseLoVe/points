@@ -72,7 +72,7 @@ public class Goods extends BaseModel implements Serializable {
     /**
      * 下架时间
      */
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8" )
     private Date endTime;
     /**
      * 是否只查询上架状态的

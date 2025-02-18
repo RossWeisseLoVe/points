@@ -1,6 +1,7 @@
 package com.dragon.flow.web.resource.customer;
 
 import com.dragon.flow.model.customer.Goods;
+import com.dragon.flow.model.customer.TimeToDo;
 import com.dragon.flow.service.customer.GoodsService;
 import com.dragon.flow.service.customer.TimeToDoService;
 import com.dragon.flow.vo.customer.GoodsVo;
@@ -9,6 +10,7 @@ import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.pager.PagerModel;
 import com.dragon.tools.vo.ReturnVo;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
@@ -23,6 +25,7 @@ public class GoodsResource {
 
     @Autowired
     private TimeToDoService timeToDoService;
+
 
     @PostMapping("page")
     public ReturnVo<PagerModel<Goods>> page(@RequestBody ParamVo<Goods> param){
@@ -48,21 +51,36 @@ public class GoodsResource {
         return new ReturnVo(ReturnCode.SUCCESS,"修改成功");
     }
 
+    @Transactional
     @GetMapping("setTimedStatus/{id}/{status}")
     public ReturnVo setTimedStatus(@PathVariable String id,@PathVariable Integer status){
         Goods goods = goodsService.getById(id);
         goods.setTimedStatus(status);
         goodsService.updateById(goods);
-        Date now = new Date();
-        long diff = goods.getStartTime().getTime() - now.getTime();
-        System.out.println("1233213123123123");
-        if(diff/1000<3){
-            //如果上架时间不足3秒以及已经超过上架时间，则直接上架
+        if(status==1){
+            Date now = new Date();
+            long diff = goods.getStartTime().getTime() - now.getTime();
+            long diffEnd = goods.getEndTime().getTime() - now.getTime();
+            if(diff/1000<3){
+                //如果上架时间不足3秒以及已经超过上架时间，则直接上架
 
+            }else{
+                timeToDoService.sendDelayedTask(id,0,goods.getStartTime(),"startTime");
+            }
+            if(diff/1000<3){
+                //如果上架时间不足3秒以及已经超过上架时间，则直接上架
+
+            }else{
+                timeToDoService.sendDelayedTask(id,0,goods.getStartTime(),"startTime");
+            }
+            timeToDoService.sendDelayedTask(id,0,goods.getEndTime(),"endTime");
+//            TimeToDo timeToDo = new TimeToDo();
+//            timeToDo.setType(0);
+//            timeToDo.setFid(id);
+//            timeToDoService.save(timeToDo);
         }else{
-            timeToDoService.sendDelayedTask(id,0,goods.getStartTime(),"startTime");
+
         }
-        timeToDoService.sendDelayedTask(id,0,goods.getEndTime(),"endTime");
         return new ReturnVo(ReturnCode.SUCCESS,"修改成功");
         //TODO:定时发布的功能
     }
