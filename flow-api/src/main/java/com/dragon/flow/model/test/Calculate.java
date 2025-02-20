@@ -17,4 +17,8 @@ public class Calculate implements Serializable {
 
     private String errorMsg;
 
+    private String className;
+
+
+
 }
