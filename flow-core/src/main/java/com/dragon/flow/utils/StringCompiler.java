@@ -21,18 +21,6 @@ public class StringCompiler {
         // 创建实例
         Object instance = clazz.newInstance();
 
-//        saveBytecodeToFile(results.get(fullName),"com/dragon/flow/model/test/Calculate");
-
-
-//         保存类字节码到文件系统
-//        Map<String, byte[]> results2 = compiler.compile("com/dragon/flow/model/test/Calculate.java", source);
-        String classFileName = fullName.replace('.', File.separatorChar) + ".class";
-        File classFile = new File("target/classes", classFileName);
-        classFile.getParentFile().mkdirs();
-        try (FileOutputStream fos = new FileOutputStream(classFile)) {
-            fos.write(results.get(fullName));
-        }
-
         return instance;
     }
 

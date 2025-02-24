@@ -37,7 +37,20 @@ public class JavaSourceGenerator {
             sourceCode.append("        this.").append(property.getPropertyName()).append(" = ").append(property.getPropertyName()).append(";\n");
             sourceCode.append("    }\n\n");
         }
-
+        sourceCode.append("    @Override\n");
+        sourceCode.append("    public String toString() {\n");
+        sourceCode.append("        return \"").append(simpleClassName).append("{\" +\n");
+        for (int i = 0; i < properties.size(); i++) {
+            PropertyDefinition property = properties.get(i);
+            sourceCode.append("                \"").append(property.getPropertyName()).append("=\" + ").append(property.getPropertyName());
+            if (i < properties.size() - 1) {
+                sourceCode.append(" +\n");
+            } else {
+                sourceCode.append(" +\n");
+                sourceCode.append("                '}';\n");
+            }
+        }
+        sourceCode.append("    }\n\n");
         // 类结束
         sourceCode.append("}");
 
