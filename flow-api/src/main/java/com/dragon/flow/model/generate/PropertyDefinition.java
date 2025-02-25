@@ -1,9 +1,24 @@
 package com.dragon.flow.model.generate;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.dragon.tools.common.BaseModel;
 import lombok.Data;
 
+import java.io.Serializable;
+import java.util.UUID;
+
 @Data
-public class PropertyDefinition {
+@TableName(value = "tbl_gen_propertydefinition")
+public class PropertyDefinition extends BaseModel implements Serializable {
+
+    private static final long serialVersionUID = UUID.randomUUID().getMostSignificantBits();
+
+    @TableId(type = IdType.ASSIGN_UUID)
+    private String id;
+
+    private String classId;
 
     private String propertyName;
 
@@ -13,12 +28,16 @@ public class PropertyDefinition {
 
     private String formItem;
 
+    private String formItemName;
+
     private String displayBy;
 
-    private String min;
+    private Integer min;
 
-    private String max;
+    private Integer max;
 
-    private String decimalPoint;
+    private Integer decimalPoint;
+
+    private String placeholder;
 
 }

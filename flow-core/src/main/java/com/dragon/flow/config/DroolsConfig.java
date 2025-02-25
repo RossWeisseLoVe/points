@@ -1,48 +1,64 @@
 package com.dragon.flow.config;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.dragon.flow.config.modeler.KieUtilClass;
 import com.dragon.flow.model.generate.ClassDefinition;
 import com.dragon.flow.model.generate.PropertyDefinition;
+import com.dragon.flow.service.generate.ClassDefinitionService;
+import com.dragon.flow.service.generate.PropertyDefinitionService;
 import com.dragon.flow.utils.JavaSourceGenerator;
 import com.itranswarp.compiler.JavaStringCompiler;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.drools.decisiontable.InputType;
 import org.drools.decisiontable.SpreadsheetCompiler;
-import org.kie.api.KieBase;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.kie.api.KieServices;
-import org.kie.api.builder.KieBuilder;
-import org.kie.api.builder.KieFileSystem;
-import org.kie.api.builder.Message;
-import org.kie.api.builder.Results;
+import org.kie.api.builder.*;
 import org.kie.api.runtime.KieContainer;
-import org.kie.api.runtime.KieSession;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Configuration
 public class DroolsConfig {
 
+    @Autowired
+    private ClassDefinitionService classDefinitionService;
+
+    @Autowired
+    private PropertyDefinitionService propertyDefinitionService;
+
     @Bean
-    public KieContainer kieContainer() throws Exception {
+    @Transactional
+    public KieUtilClass kieUtilCreator() throws Exception {
         //读取EXCEL文件
         String packageName = "com.dragon.flow.model.test";
-        String filePath = "E:/Java/workspace/points/points/flow-core/src/main/resources/rules/rule.xls";
+//        String filePath = "E:/Java/workspace/points/points/flow-core/src/main/resources/rules/rule.xls";
+        String filePath = "E:/workspace/points/flow-master/flow-core/src/main/resources/rules/rule.xls";
         List<ClassDefinition> classList = parseExcel(filePath);
         JavaStringCompiler compiler = new JavaStringCompiler();
-
+        Map<String, Class<?>> clazzMap = new HashMap<>();
+        Map<String, KieContainer> kieContainerMap = new HashMap<>();
         KieServices kieServices = KieServices.Factory.get();
         KieFileSystem kieFileSystem = kieServices.newKieFileSystem();
         SpreadsheetCompiler compilerExcel = new SpreadsheetCompiler();
         String drl = compilerExcel.compile(new FileInputStream(filePath), InputType.XLS);
         kieFileSystem.write("src/main/resources/rules.drl", drl);
         System.out.println(drl);
+        QueryWrapper<ClassDefinition> wrapper = new QueryWrapper<>();
+        wrapper.isNotNull("id");
+        classDefinitionService.remove(wrapper);
+        QueryWrapper<PropertyDefinition> pwrapper = new QueryWrapper<>();
+        wrapper.isNotNull("id");
+        propertyDefinitionService.remove(pwrapper);
         final ClassLoader[] classLoader = {null};
         classList.forEach(item->{
             String sourceCode = JavaSourceGenerator.generateSourceCode(item);
@@ -53,13 +69,21 @@ public class DroolsConfig {
                 String classFilePath = "src/main/resources/" + fullName.replace('.', '/') + ".class";
                 kieFileSystem.write(classFilePath,results.get(fullName));
                 Class<?> clazz = compiler.loadClass(fullName, results);
-                if(classLoader[0] ==null){
-                    classLoader[0] = clazz.getClassLoader();
-                }
-
+                clazzMap.put(fullName,clazz);
+//                if(classLoader[0] ==null){
+//                    classLoader[0] = clazz.getClassLoader();
+//                }
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
             }
+            //存入数据库
+            item.setSourceCode(sourceCode);
+            classDefinitionService.save(item);
+            String id = item.getId();
+            item.getProperties().forEach(x->{
+                x.setClassId(id);
+            });
+            propertyDefinitionService.saveBatch(item.getProperties());
         });
         KieBuilder kieBuilder = kieServices.newKieBuilder(kieFileSystem);
         kieBuilder.buildAll();
@@ -70,8 +94,15 @@ public class DroolsConfig {
             System.err.println(resultsBuilder.getMessages());
             throw new RuntimeException("Build Errors: " + resultsBuilder.getMessages());
         }
-        KieContainer kieContainer = kieServices.newKieContainer(kieServices.getRepository().getDefaultReleaseId(),classLoader[0]);
-        return kieContainer;
+        classList.forEach(item->{
+            String fullName = item.getClassName();
+            KieContainer kieContainer = kieServices.newKieContainer(kieServices.getRepository().getDefaultReleaseId(),clazzMap.get(fullName).getClassLoader());
+            kieContainerMap.put(fullName,kieContainer);
+        });
+        KieUtilClass kieUtilClass = new KieUtilClass();
+        kieUtilClass.setClassMap(clazzMap);
+        kieUtilClass.setKieContainerMap(kieContainerMap);
+        return kieUtilClass;
     }
 
     private static List<ClassDefinition> parseExcel(String filePath) throws Exception {
@@ -99,21 +130,24 @@ public class DroolsConfig {
                     currentClass = new ClassDefinition();
                     currentClass.setClassName(packageName+"."+getCellValue(nameCell));
                     currentClass.setProperties(new ArrayList<>());
+                    currentClass.setDescription(getCellValue(row.getCell(2)));
                 } else if (currentClass != null&&!"propertyName".equalsIgnoreCase(getCellValue(typeCell))) {
                     // 处理属性行（假设属性行格式：第二列为属性名，第三列为类型）
                     String propertyName = getCellValue(row.getCell(1));
                     String propertyType = getCellValue(row.getCell(2));
                     String inputOrOutput = getCellValue(row.getCell(3));
                     String formItem = getCellValue(row.getCell(4));
-                    String displayBy = getCellValue(row.getCell(5));
-                    String min = getCellValue(row.getCell(6));
-                    String max = getCellValue(row.getCell(7));
-                    String decimalPoint = getCellValue(row.getCell(8));
+                    String formItemName = getCellValue(row.getCell(5));
+                    String displayBy = getCellValue(row.getCell(6));
+                    Integer min = getCellValueInteger(row.getCell(7));
+                    Integer max = getCellValueInteger(row.getCell(8));
+                    Integer decimalPoint = getCellValueInteger(row.getCell(9));
                     PropertyDefinition propertyDefinition = new PropertyDefinition();
                     propertyDefinition.setPropertyName(propertyName);
                     propertyDefinition.setPropertyType(propertyType);
                     propertyDefinition.setInputOrOutput(inputOrOutput);
                     propertyDefinition.setFormItem(formItem);
+                    propertyDefinition.setFormItemName(formItemName);
                     propertyDefinition.setDisplayBy(displayBy);
                     propertyDefinition.setMin(min);
                     propertyDefinition.setMax(max);
@@ -135,8 +169,12 @@ public class DroolsConfig {
         return formatter.formatCellValue(cell).trim();
     }
 
-    @Bean
-    public KieSession kieSession() throws Exception {
-        return kieContainer().getKieBase().newKieSession();
+    private static Integer getCellValueInteger(Cell cell){
+        if (cell == null) return null;
+        DataFormatter formatter = new DataFormatter();
+        if("".equalsIgnoreCase(formatter.formatCellValue(cell).trim())) return null;
+        return Integer.parseInt(formatter.formatCellValue(cell).trim());
     }
+
+
 }

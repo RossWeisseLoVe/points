@@ -1,15 +1,17 @@
 package com.dragon.flow.web.resource.test;
 
+import com.dragon.flow.config.modeler.KieUtilClass;
 import com.dragon.flow.model.generate.ClassDefinition;
-import com.dragon.flow.service.test.CalculateService;
 import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.vo.ReturnVo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.beanutils.BeanUtils;
 
+import org.kie.api.KieServices;
 import org.kie.api.builder.*;
 import org.kie.api.event.rule.*;
+import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -22,18 +24,16 @@ import java.util.*;
 public class CalculateResource {
 
     @Autowired
-    private CalculateService calculateService;
+    private KieUtilClass kieUtilClass;
 
-    @Autowired
-    private KieSession kieSession;
 
     @PostMapping("getAverage")
     public ReturnVo<Object> page(@RequestBody Object param,@RequestParam String typeName) throws Exception {
-        ClassDefinition classDefinition = new ClassDefinition();  //该类用于生成动态类
         String packageName = "com.dragon.flow.model.test";  //默认包名
-        String simpleClassName = typeName;  //类名，从url上获取typeName
-        String fullName = String.format("%s.%s", packageName, simpleClassName);  //全类名
-
+        String fullName = String.format("%s.%s", packageName, typeName);  //全类名
+        Map<String, Class<?>> clazzMap = kieUtilClass.getClassMap();
+        KieContainer kieContainer = kieUtilClass.getKieContainerMap().get(fullName);
+        KieSession kieSession = kieContainer.getKieBase().newKieSession();
         kieSession.addEventListener(new DebugRuleRuntimeEventListener() {
             @Override
             public void objectInserted(ObjectInsertedEvent event) {
@@ -79,10 +79,10 @@ public class CalculateResource {
             }
         });
 
+        //创建实例
 
-
-        // 创建实例
-        Object instance = clazz.newInstance();
+        System.out.println(clazzMap.get(fullName).getClassLoader());
+        Object instance = clazzMap.get(fullName).newInstance();
         //从Object接收的param中取出付给新建的实例
         ObjectMapper objectMapper = new ObjectMapper();
         ObjectNode objectNode = objectMapper.valueToTree(param);
@@ -92,6 +92,11 @@ public class CalculateResource {
             System.out.println(fieldName + ": " + fieldValue);
             callSetterMethod(instance,fieldName,fieldValue);
         });
+        //插入带值的实例
+        kieSession.insert(instance);
+        int i = kieSession.fireAllRules();
+        System.out.println("触发规则条数："+i);
+        kieSession.dispose();
         ObjectMapper objectMapper1 = new ObjectMapper();
         ObjectNode objectNode1 = objectMapper1.valueToTree(instance);
         objectNode1.fields().forEachRemaining(entry -> {
@@ -99,11 +104,6 @@ public class CalculateResource {
             Object fieldValue = entry.getValue();
             System.out.println(fieldName + ": :::::" + fieldValue);
         });
-        //插入带值的实例
-        kieSession.insert(instance);
-        int i = kieSession.fireAllRules();
-        System.out.println("触发规则条数："+i);
-        kieSession.dispose();
         ReturnVo<Object> calculateReturnVo = new ReturnVo<>();
         calculateReturnVo.setCode(ReturnCode.SUCCESS);
         calculateReturnVo.setData(instance);
