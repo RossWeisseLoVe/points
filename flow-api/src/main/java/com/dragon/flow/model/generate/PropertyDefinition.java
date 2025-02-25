@@ -9,4 +9,16 @@ public class PropertyDefinition {
 
     private String propertyType;
 
+    private String inputOrOutput;
+
+    private String formItem;
+
+    private String displayBy;
+
+    private String min;
+
+    private String max;
+
+    private String decimalPoint;
+
 }
