@@ -8,11 +8,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.beanutils.BeanUtils;
 
+import org.kie.api.KieBase;
 import org.kie.api.KieServices;
 import org.kie.api.builder.*;
 import org.kie.api.event.rule.*;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
+import org.kie.api.runtime.rule.FactHandle;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.lang.reflect.Field;
@@ -32,7 +34,7 @@ public class CalculateResource {
         String packageName = "com.dragon.flow.model.test";  //默认包名
         String fullName = String.format("%s.%s", packageName, typeName);  //全类名
         Map<String, Class<?>> clazzMap = kieUtilClass.getClassMap();
-        KieContainer kieContainer = kieUtilClass.getKieContainerMap().get(fullName);
+        KieContainer kieContainer = kieUtilClass.getKieContainer();
         KieSession kieSession = kieContainer.getKieBase().newKieSession();
         kieSession.addEventListener(new DebugRuleRuntimeEventListener() {
             @Override
@@ -95,6 +97,11 @@ public class CalculateResource {
         //插入带值的实例
         kieSession.insert(instance);
         int i = kieSession.fireAllRules();
+        Collection<FactHandle> factHandles = kieSession.getFactHandles();
+        for (FactHandle element : factHandles) {
+            System.out.println(element.toString());
+        }
+
         System.out.println("触发规则条数："+i);
         kieSession.dispose();
         ObjectMapper objectMapper1 = new ObjectMapper();
@@ -136,5 +143,7 @@ public class CalculateResource {
             e.printStackTrace();
         }
     }
+
+
 
 }

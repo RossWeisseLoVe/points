@@ -9,7 +9,7 @@ import java.util.Map;
 @Data
 public class KieUtilClass {
 
-    private Map<String, KieContainer> kieContainerMap;
+    private KieContainer kieContainer;
 
     private Map<String, Class<?>> classMap;
 

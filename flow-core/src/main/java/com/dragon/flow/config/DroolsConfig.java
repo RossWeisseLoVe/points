@@ -41,8 +41,8 @@ public class DroolsConfig {
     public KieUtilClass kieUtilCreator() throws Exception {
         //读取EXCEL文件
         String packageName = "com.dragon.flow.model.test";
-//        String filePath = "E:/Java/workspace/points/points/flow-core/src/main/resources/rules/rule.xls";
-        String filePath = "E:/workspace/points/flow-master/flow-core/src/main/resources/rules/rule.xls";
+        String filePath = "E:/Java/workspace/points/points/flow-core/src/main/resources/rules/rule.xls";
+//        String filePath = "E:/workspace/points/flow-master/flow-core/src/main/resources/rules/rule.xls";
         List<ClassDefinition> classList = parseExcel(filePath);
         JavaStringCompiler compiler = new JavaStringCompiler();
         Map<String, Class<?>> clazzMap = new HashMap<>();
@@ -59,7 +59,7 @@ public class DroolsConfig {
         QueryWrapper<PropertyDefinition> pwrapper = new QueryWrapper<>();
         wrapper.isNotNull("id");
         propertyDefinitionService.remove(pwrapper);
-        final ClassLoader[] classLoader = {null};
+        Map<String, byte[]> bytecodeMap = new HashMap<>();
         classList.forEach(item->{
             String sourceCode = JavaSourceGenerator.generateSourceCode(item);
             System.out.println("sourceCode:"+ sourceCode);
@@ -70,9 +70,7 @@ public class DroolsConfig {
                 kieFileSystem.write(classFilePath,results.get(fullName));
                 Class<?> clazz = compiler.loadClass(fullName, results);
                 clazzMap.put(fullName,clazz);
-//                if(classLoader[0] ==null){
-//                    classLoader[0] = clazz.getClassLoader();
-//                }
+                bytecodeMap.put(fullName, results.get(fullName));
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
             }
@@ -85,6 +83,30 @@ public class DroolsConfig {
             });
             propertyDefinitionService.saveBatch(item.getProperties());
         });
+
+        ClassLoader sharedClassLoader = new ClassLoader() {
+            @Override
+            protected Class<?> findClass(String name) throws ClassNotFoundException {
+                byte[] bytecode = bytecodeMap.get(name);
+                if (bytecode != null) {
+                    return defineClass(name, bytecode, 0, bytecode.length);
+                }
+                throw new ClassNotFoundException(name);
+            }
+        };
+
+        // 加载所有类到 clazzMap
+        for (String fullName : bytecodeMap.keySet()) {
+            try {
+                Class<?> clazz = sharedClassLoader.loadClass(fullName);
+                clazzMap.put(fullName, clazz);
+                System.out.println("Loaded " + fullName + " with ClassLoader: " + clazz.getClassLoader());
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
+
+
         KieBuilder kieBuilder = kieServices.newKieBuilder(kieFileSystem);
         kieBuilder.buildAll();
         Results resultsBuilder = kieBuilder.getResults();
@@ -94,14 +116,10 @@ public class DroolsConfig {
             System.err.println(resultsBuilder.getMessages());
             throw new RuntimeException("Build Errors: " + resultsBuilder.getMessages());
         }
-        classList.forEach(item->{
-            String fullName = item.getClassName();
-            KieContainer kieContainer = kieServices.newKieContainer(kieServices.getRepository().getDefaultReleaseId(),clazzMap.get(fullName).getClassLoader());
-            kieContainerMap.put(fullName,kieContainer);
-        });
+        KieContainer kieContainer = kieServices.newKieContainer(kieServices.getRepository().getDefaultReleaseId(),sharedClassLoader);
         KieUtilClass kieUtilClass = new KieUtilClass();
         kieUtilClass.setClassMap(clazzMap);
-        kieUtilClass.setKieContainerMap(kieContainerMap);
+        kieUtilClass.setKieContainer(kieContainer);
         return kieUtilClass;
     }
 
