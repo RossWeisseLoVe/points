@@ -41,8 +41,8 @@ public class DroolsConfig {
     public KieUtilClass kieUtilCreator() throws Exception {
         //读取EXCEL文件
         String packageName = "com.dragon.flow.model.test";
-        String filePath = "E:/Java/workspace/points/points/flow-core/src/main/resources/rules/rule.xls";
-//        String filePath = "E:/workspace/points/flow-master/flow-core/src/main/resources/rules/rule.xls";
+//        String filePath = "E:/Java/workspace/points/points/flow-core/src/main/resources/rules/rule.xls";
+        String filePath = "E:/workspace/points/flow-master/flow-core/src/main/resources/rules/rule.xls";
         List<ClassDefinition> classList = parseExcel(filePath);
         JavaStringCompiler compiler = new JavaStringCompiler();
         Map<String, Class<?>> clazzMap = new HashMap<>();
@@ -148,7 +148,7 @@ public class DroolsConfig {
                     currentClass = new ClassDefinition();
                     currentClass.setClassName(packageName+"."+getCellValue(nameCell));
                     currentClass.setProperties(new ArrayList<>());
-                    currentClass.setDescription(getCellValue(row.getCell(2)));
+                    currentClass.setDescription(getCellValue(row.getCell(3)));
                 } else if (currentClass != null&&!"propertyName".equalsIgnoreCase(getCellValue(typeCell))) {
                     // 处理属性行（假设属性行格式：第二列为属性名，第三列为类型）
                     String propertyName = getCellValue(row.getCell(1));

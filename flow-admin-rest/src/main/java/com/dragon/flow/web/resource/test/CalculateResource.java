@@ -1,15 +1,11 @@
 package com.dragon.flow.web.resource.test;
 
 import com.dragon.flow.config.modeler.KieUtilClass;
-import com.dragon.flow.model.generate.ClassDefinition;
 import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.vo.ReturnVo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.beanutils.BeanUtils;
-
-import org.kie.api.KieBase;
-import org.kie.api.KieServices;
 import org.kie.api.builder.*;
 import org.kie.api.event.rule.*;
 import org.kie.api.runtime.KieContainer;
@@ -29,7 +25,7 @@ public class CalculateResource {
     private KieUtilClass kieUtilClass;
 
 
-    @PostMapping("getAverage")
+    @PostMapping("getResult")
     public ReturnVo<Object> page(@RequestBody Object param,@RequestParam String typeName) throws Exception {
         String packageName = "com.dragon.flow.model.test";  //默认包名
         String fullName = String.format("%s.%s", packageName, typeName);  //全类名

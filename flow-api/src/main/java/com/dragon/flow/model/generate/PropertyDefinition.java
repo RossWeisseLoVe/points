@@ -15,8 +15,8 @@ public class PropertyDefinition extends BaseModel implements Serializable {
 
     private static final long serialVersionUID = UUID.randomUUID().getMostSignificantBits();
 
-    @TableId(type = IdType.ASSIGN_UUID)
-    private String id;
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
     private String classId;
 
