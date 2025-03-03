@@ -40,4 +40,6 @@ public class PropertyDefinition extends BaseModel implements Serializable {
 
     private String placeholder;
 
+    private String options;
+
 }

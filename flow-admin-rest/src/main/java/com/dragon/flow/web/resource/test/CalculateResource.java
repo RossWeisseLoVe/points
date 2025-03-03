@@ -1,5 +1,6 @@
 package com.dragon.flow.web.resource.test;
 
+import com.dragon.flow.config.DroolsConfig;
 import com.dragon.flow.config.modeler.KieUtilClass;
 import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.vo.ReturnVo;
@@ -24,6 +25,18 @@ public class CalculateResource {
     @Autowired
     private KieUtilClass kieUtilClass;
 
+    @Autowired
+    private DroolsConfig droolsConfig;
+
+
+    @PostMapping("/reload")
+    public ReturnVo<String> reload() throws Exception {
+        droolsConfig.refreshBean();
+        ReturnVo<String> stringReturnVo = new ReturnVo<>();
+        stringReturnVo.setCode(ReturnCode.SUCCESS);
+        stringReturnVo.setMsg("重载成功");
+        return stringReturnVo;
+    }
 
     @PostMapping("getResult")
     public ReturnVo<Object> page(@RequestBody Object param,@RequestParam String typeName) throws Exception {

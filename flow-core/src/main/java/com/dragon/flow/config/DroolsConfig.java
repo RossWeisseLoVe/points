@@ -30,13 +30,14 @@ import java.util.*;
 @Configuration
 public class DroolsConfig {
 
+    private volatile KieUtilClass kieUtill;
+
     @Autowired
     private ClassDefinitionService classDefinitionService;
 
     @Autowired
     private PropertyDefinitionService propertyDefinitionService;
 
-    @Bean
     @Transactional
     public KieUtilClass kieUtilCreator() throws Exception {
         //读取EXCEL文件
@@ -160,6 +161,8 @@ public class DroolsConfig {
                     Integer min = getCellValueInteger(row.getCell(7));
                     Integer max = getCellValueInteger(row.getCell(8));
                     Integer decimalPoint = getCellValueInteger(row.getCell(9));
+                    String placeHolder = getCellValue(row.getCell(10));
+                    String options = getCellValue(row.getCell(11));
                     PropertyDefinition propertyDefinition = new PropertyDefinition();
                     propertyDefinition.setPropertyName(propertyName);
                     propertyDefinition.setPropertyType(propertyType);
@@ -170,6 +173,8 @@ public class DroolsConfig {
                     propertyDefinition.setMin(min);
                     propertyDefinition.setMax(max);
                     propertyDefinition.setDecimalPoint(decimalPoint);
+                    propertyDefinition.setPlaceholder(placeHolder);
+                    propertyDefinition.setOptions(options);
                     currentClass.getProperties().add(propertyDefinition);
                 }
             }
@@ -194,5 +199,16 @@ public class DroolsConfig {
         return Integer.parseInt(formatter.formatCellValue(cell).trim());
     }
 
+    @Bean
+    public KieUtilClass createBean() throws Exception {
+        if (kieUtill == null) {
+            kieUtill = kieUtilCreator();
+        }
+        return kieUtill;
+    }
+
+    public void refreshBean() throws Exception {
+        kieUtill = kieUtilCreator();
+    }
 
 }
