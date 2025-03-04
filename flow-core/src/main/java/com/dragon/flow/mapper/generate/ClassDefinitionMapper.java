@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.dragon.flow.model.generate.ClassDefinition;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 /**
 * @author IRDC-Front
 * @description 针对表【tbl_customer_activity】的数据库操作Mapper
@@ -12,6 +14,8 @@ import org.springframework.stereotype.Repository;
 */
 @Repository
 public interface ClassDefinitionMapper extends BaseMapper<ClassDefinition> {
+
+    List<ClassDefinition> selectAllWithProperties();
 
 }
 

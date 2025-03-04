@@ -42,4 +42,9 @@ public class ClassDefinitionImpl extends ServiceImpl<ClassDefinitionMapper, Clas
         classDef.setProperties(properties);
         return classDef;
     }
+
+    public List<ClassDefinition> selectAllWithProperties(){
+        return classDefinitionMapper.selectAllWithProperties();
+    }
+
 }

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dragon.flow.mapper.generate.ClassDefinitionMapper">
+
+    <!-- ClassDefinitionMapper.xml -->
+    <resultMap id="classWithPropertiesMap" type="com.dragon.flow.model.generate.ClassDefinition">
+        <!-- 主表字段映射 -->
+        <id property="id" column="class_id"/>
+        <result property="className" column="class_name"/>
+        <result property="description" column="description"/>
+        <result property="sourceCode" column="source_code"/>
+
+        <!-- 关联属性集合 -->
+        <collection property="properties" ofType="com.dragon.flow.model.generate.PropertyDefinition">
+            <id property="id" column="prop_id"/>
+            <result property="classId" column="class_id"/>
+            <result property="propertyName" column="property_name"/>
+            <result property="propertyType" column="property_type"/>
+            <!-- 其他字段映射 -->
+            <result property="inputOrOutput" column="input_or_output"/>
+            <result property="formItem" column="form_item"/>
+            <result property="formItemName" column="form_item_name"/>
+            <result property="displayBy" column="display_by"/>
+            <result property="min" column="min"/>
+            <result property="max" column="max"/>
+            <result property="decimalPoint" column="decimal_point"/>
+            <result property="placeholder" column="placeholder"/>
+            <result property="options" column="options"/>
+        </collection>
+    </resultMap>
+
+    <select id="selectAllWithProperties" resultMap="classWithPropertiesMap">
+        SELECT
+            c.id AS class_id,
+            c.class_name,
+            c.description,
+            c.source_code,
+            p.id AS prop_id,
+            p.class_id,
+            p.property_name,
+            p.property_type,
+            p.input_or_output,
+            p.form_item,
+            p.form_item_name,
+            p.display_by,
+            p.min,
+            p.max,
+            p.decimal_point,
+            p.placeholder,
+            p.options
+        FROM tbl_gen_classdefinition c
+                 LEFT JOIN tbl_gen_propertydefinition p ON c.id = p.class_id
+        ORDER BY c.class_name, p.property_name
+    </select>
+</mapper>

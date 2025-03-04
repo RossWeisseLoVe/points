@@ -28,4 +28,14 @@ public class ClassDefinitionResource {
         return listReturnVo;
     }
 
+    @GetMapping("/getAllRulesWithProperty")
+    public ReturnVo<List<ClassDefinition>> getAllRulesWithProperty(){
+        List<ClassDefinition> classDefinitions = classDefinitionService.selectAllWithProperties();
+        ReturnVo<List<ClassDefinition>> listReturnVo = new ReturnVo<>();
+        listReturnVo.setMsg("查询成功");
+        listReturnVo.setData(classDefinitions);
+        listReturnVo.setCode(ReturnCode.SUCCESS);
+        return listReturnVo;
+    }
+
 }
