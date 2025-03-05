@@ -52,6 +52,6 @@
             p.options
         FROM tbl_gen_classdefinition c
                  LEFT JOIN tbl_gen_propertydefinition p ON c.id = p.class_id
-        ORDER BY c.class_name, p.property_name
+        ORDER BY p.id
     </select>
 </mapper>
