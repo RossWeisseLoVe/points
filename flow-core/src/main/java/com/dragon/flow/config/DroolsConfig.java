@@ -18,6 +18,9 @@ import org.kie.api.KieServices;
 import org.kie.api.builder.*;
 import org.kie.api.runtime.KieContainer;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.support.BeanDefinitionBuilder;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
@@ -25,12 +28,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.*;
 
 @Configuration
 public class DroolsConfig {
 
     private volatile KieUtilClass kieUtill;
+
+    @Autowired
+    private ApplicationContext applicationContext;
 
     @Autowired
     private ClassDefinitionService classDefinitionService;
@@ -41,10 +48,9 @@ public class DroolsConfig {
     @Transactional
     public KieUtilClass kieUtilCreator() throws Exception {
         //读取EXCEL文件
-        String packageName = "com.dragon.flow.model.test";
 //        String filePath = "E:/Java/workspace/points/points/flow-core/src/main/resources/rules/rule.xls";
-//        String filePath = "E:/workspace/points/flow-master/flow-core/src/main/resources/rules/rule.xls";
-        String filePath = "E:/workspace/points/flow-core/src/main/resources/rules/rule.xls";
+        String filePath = "E:/workspace/points/flow-master/flow-core/src/main/resources/rules/rule.xls";
+//        String filePath = "E:/workspace/points/flow-core/src/main/resources/rules/rule.xls";
         List<ClassDefinition> classList = parseExcel(filePath);
         JavaStringCompiler compiler = new JavaStringCompiler();
         Map<String, Class<?>> clazzMap = new HashMap<>();
@@ -107,7 +113,17 @@ public class DroolsConfig {
                 e.printStackTrace();
             }
         }
-
+//        classList.forEach(item->{
+//            String fullName = item.getClassName();
+//            try {
+//                Class<?> dynamicClass = sharedClassLoader.loadClass(fullName);
+//                DefaultListableBeanFactory beanFactory = (DefaultListableBeanFactory) applicationContext.getAutowireCapableBeanFactory();
+//                BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(dynamicClass);
+//                beanFactory.registerBeanDefinition("dynamicClass", builder.getBeanDefinition());
+//            } catch (ClassNotFoundException e) {
+//                e.printStackTrace();
+//            }
+//        });
 
         KieBuilder kieBuilder = kieServices.newKieBuilder(kieFileSystem);
         kieBuilder.buildAll();
@@ -122,6 +138,9 @@ public class DroolsConfig {
         KieUtilClass kieUtilClass = new KieUtilClass();
         kieUtilClass.setClassMap(clazzMap);
         kieUtilClass.setKieContainer(kieContainer);
+
+
+
         return kieUtilClass;
     }
 
@@ -130,7 +149,7 @@ public class DroolsConfig {
         String packageName = "com.dragon.flow.model.test";
         try (FileInputStream fis = new FileInputStream(filePath);
              Workbook workbook = new HSSFWorkbook(fis)){
-             Sheet sheet = workbook.getSheetAt(1);
+            Sheet sheet = workbook.getSheetAt(1);
             ClassDefinition currentClass = null;
 
             for (Row row : sheet) {

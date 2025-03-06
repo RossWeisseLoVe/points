@@ -1,38 +1,114 @@
 package com.dragon.flow.utils;
 
-import com.itranswarp.compiler.JavaStringCompiler;
-
-import java.io.File;
-import java.io.FileOutputStream;
+import javax.tools.*;
 import java.io.IOException;
-import java.util.Map;
+import java.io.OutputStream;
+import java.net.URI;
+import java.util.*;
+import java.io.ByteArrayOutputStream;
+import java.util.stream.Collectors;
 
+/////////////////////////////////////////////
+// 步骤1：添加自定义编译器工具类（直接放在当前类中或独立文件）
+/////////////////////////////////////////////
 public class StringCompiler {
-    public static Object run(String source, String className, String packageName) throws Exception {
-        String fullName = String.format("%s.%s", packageName, className);
-        System.out.println("1222222   "+fullName);
+    public static Map<String, byte[]> compile(String fullClassName, String sourceCode) throws Exception {
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        if (compiler == null) {
+            throw new IllegalStateException("JDK编译器不可用，请使用JDK运行");
+        }
 
-        // 编译器
-        JavaStringCompiler compiler = new JavaStringCompiler();
-        // 编译：compiler.compile("Main.java", source)
-        Map<String, byte[]> results = compiler.compile(className + ".java",  source);
-        // 加载内存中byte到Class<?>对象
-        Class<?> clazz = compiler.loadClass(fullName, results);
-        // 创建实例
-        Object instance = clazz.newInstance();
+        // 构建类路径（关键！需包含所有依赖）
+        String classpath = buildClasspath();
 
-        return instance;
+        // 配置编译选项
+        List<String> options = new ArrayList<>();
+        options.add("-classpath");
+        options.add(classpath);
+
+        // 内存文件管理器
+        MemoryFileManager manager = new MemoryFileManager(compiler.getStandardFileManager(null, null, null));
+
+        // 包装源代码
+        JavaFileObject source = new MemoryJavaFileObject(fullClassName, sourceCode);
+
+        // 执行编译
+        JavaCompiler.CompilationTask task = compiler.getTask(
+                null,
+                manager,
+                null,
+                options,
+                null,
+                Collections.singletonList(source)
+        );
+
+        if (!task.call()) {
+            throw new RuntimeException("编译失败：" + manager.getDiagnostics());
+        }
+
+        return manager.getClassBytes();
     }
 
-    private static void saveBytecodeToFile(byte[] bytecode, String className) {
-        System.out.println("7777777777");
-        System.out.println("target/classes/" + className.replace('.', '/') + ".class");
-        File outputFile = new File("target/classes/" + className.replace('.', '/') + ".class");
-        try (FileOutputStream fos = new FileOutputStream(outputFile)) {
-            fos.write(bytecode);
-            System.out.println("Class file saved to: " + outputFile.getAbsolutePath());
-        } catch (IOException e) {
-            e.printStackTrace();
+    private static String buildClasspath() {
+        // 获取当前项目的类路径（Maven/Gradle项目需要包含target/classes）
+        String defaultClasspath = System.getProperty("java.class.path");
+        // 如果依赖不在默认路径，手动添加（示例）：
+        // defaultClasspath += ":/path/to/spring-core.jar";
+        return defaultClasspath;
+    }
+
+    // 内存文件对象
+    private static class MemoryJavaFileObject extends SimpleJavaFileObject {
+        private final String code;
+
+        protected MemoryJavaFileObject(String className, String code) {
+            super(URI.create("string:///" + className.replace('.', '/') + Kind.SOURCE.extension), Kind.SOURCE);
+            this.code = code;
+        }
+
+        @Override
+        public CharSequence getCharContent(boolean ignoreEncodingErrors) {
+            return code;
+        }
+    }
+
+    // 内存文件管理器
+    private static class MemoryFileManager extends ForwardingJavaFileManager<JavaFileManager> {
+        private final Map<String, byte[]> classBytes = new HashMap<>();
+        private final List<Diagnostic<?>> diagnostics = new ArrayList<>();
+
+        protected MemoryFileManager(JavaFileManager fileManager) {
+            super(fileManager);
+        }
+
+        @Override
+        public JavaFileObject getJavaFileForOutput(Location location, String className, JavaFileObject.Kind kind, FileObject sibling) {
+            return new SimpleJavaFileObject(URI.create(className), kind) {
+                @Override
+                public OutputStream openOutputStream() {
+                    return new ByteArrayOutputStream() {
+                        @Override
+                        public void close() throws IOException {
+                            classBytes.put(className, toByteArray());
+                        }
+                    };
+                }
+            };
+        }
+
+        @Override
+        public boolean isSameFile(FileObject a, FileObject b) {
+            return true; // 简化处理
+        }
+
+        public Map<String, byte[]> getClassBytes() {
+            return classBytes;
+        }
+
+        public String getDiagnostics() {
+            return diagnostics.stream()
+                    .map(d -> d.getMessage(Locale.ENGLISH))
+                    .collect(Collectors.joining("\n"));
         }
     }
 }
