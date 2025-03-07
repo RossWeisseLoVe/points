@@ -1,45 +1,32 @@
-package com.dragon.flow.web.resource.test;
+package com.dragon.flow.service.calculate.impl;
 
-import com.dragon.flow.config.DroolsConfig;
 import com.dragon.flow.config.modeler.KieUtilClass;
-import com.dragon.tools.common.ReturnCode;
-import com.dragon.tools.vo.ReturnVo;
+import com.dragon.flow.service.calculate.CalculateService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.beanutils.BeanUtils;
-import org.kie.api.builder.*;
+import org.kie.api.builder.KieFileSystem;
 import org.kie.api.event.rule.*;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.FactHandle;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.stereotype.Service;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.util.*;
+import java.util.Collection;
+import java.util.Map;
 
-@RestController
-@RequestMapping("/flow/test/calculate")
-public class CalculateResource {
+@Service
+public class CalculateServiceImpl implements CalculateService {
 
     @Autowired
     private KieUtilClass kieUtilClass;
 
-    @Autowired
-    private DroolsConfig droolsConfig;
 
-
-    @PostMapping("/reload")
-    public ReturnVo<String> reload() throws Exception {
-        droolsConfig.refreshBean();
-        ReturnVo<String> stringReturnVo = new ReturnVo<>();
-        stringReturnVo.setCode(ReturnCode.SUCCESS);
-        stringReturnVo.setMsg("重载成功");
-        return stringReturnVo;
-    }
-
-    @PostMapping("getResult")
-    public ReturnVo<Object> page(@RequestBody Object param,@RequestParam String typeName) throws Exception {
+    @Override
+    public Object getCalculateInstance(Object param, String typeName) throws Exception {
         String packageName = "com.dragon.flow.model.test";  //默认包名
         String fullName = String.format("%s.%s", packageName, typeName);  //全类名
         Map<String, Class<?>> clazzMap = kieUtilClass.getClassMap();
@@ -120,14 +107,8 @@ public class CalculateResource {
             Object fieldValue = entry.getValue();
             System.out.println(fieldName + ": :::::" + fieldValue);
         });
-        ReturnVo<Object> calculateReturnVo = new ReturnVo<>();
-        calculateReturnVo.setCode(ReturnCode.SUCCESS);
-        calculateReturnVo.setData(instance);
-        calculateReturnVo.setMsg("计算成功");
-        return calculateReturnVo;
+        return instance;
     }
-
-
 
 
     public static void callSetterMethod(Object obj, String propertyName,Object fieldValue) {
@@ -152,7 +133,4 @@ public class CalculateResource {
             e.printStackTrace();
         }
     }
-
-
-
 }
