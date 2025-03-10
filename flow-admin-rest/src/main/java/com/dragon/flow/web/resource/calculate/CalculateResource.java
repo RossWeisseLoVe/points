@@ -1,27 +1,25 @@
 package com.dragon.flow.web.resource.calculate;
 
-import com.dragon.flow.config.DroolsConfig;
-import com.dragon.flow.config.modeler.KieUtilClass;
+
 import com.dragon.flow.model.calculate.CalculateModel;
+import com.dragon.flow.model.calculate.RegionModel;
+import com.dragon.flow.model.customer.Activity;
 import com.dragon.flow.service.calculate.CalculateService;
 import com.dragon.flow.service.calculate.ModelsRepository;
+import com.dragon.flow.service.calculate.RegionRepository;
+import com.dragon.flow.vo.pager.ParamVo;
 import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.vo.ReturnVo;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.commons.beanutils.BeanUtils;
-import org.kie.api.builder.KieFileSystem;
-import org.kie.api.event.rule.*;
-import org.kie.api.runtime.KieContainer;
-import org.kie.api.runtime.KieSession;
-import org.kie.api.runtime.rule.FactHandle;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Example;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Collection;
-import java.util.Map;
+import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/flow/calculate")
@@ -32,6 +30,9 @@ public class CalculateResource {
 
     @Autowired
     private ModelsRepository modelsRepository;
+
+    @Autowired
+    private RegionRepository regionRepository;
 
 //    @PostMapping("/reload")
 //    public ReturnVo<String> reload() throws Exception {
@@ -52,9 +53,16 @@ public class CalculateResource {
         return calculateReturnVo;
     }
 
+    @Transactional
     @PostMapping("saveModel")
     public ReturnVo saveModel(@RequestBody CalculateModel calculateModel){
-        modelsRepository.insert(calculateModel);
+        List<RegionModel> regionModelList = calculateModel.getTemplate();
+        CalculateModel insert = modelsRepository.insert(calculateModel);
+        String id = insert.getId();
+        regionModelList.forEach(item->{
+            item.setModelId(id);
+        });
+        regionRepository.saveAll(regionModelList);
         ReturnVo<Object> returnVo = new ReturnVo<>();
         returnVo.setCode(ReturnCode.SUCCESS);
         returnVo.setData(null);
@@ -62,7 +70,35 @@ public class CalculateResource {
         return returnVo;
     }
 
+    @PostMapping("getModels")
+    public ReturnVo<List<CalculateModel>> getModels(@RequestBody ParamVo<Activity> param){
+        int pageNum = param.getQuery().getPageNum();
+        int pageSize = param.getQuery().getPageSize();
+        System.out.println("num"+pageNum);
+        System.out.println("size"+pageSize);
+//        CalculateModel calculateModel = new CalculateModel();
+//        Example<CalculateModel> calculateModelExample = Example.of(calculateModel);
+        Pageable pageable = PageRequest.of(pageNum - 1,pageSize);
+        Page<CalculateModel> all = modelsRepository.findAll(pageable);
+        List<CalculateModel> content = all.getContent();
+        ReturnVo<List<CalculateModel>> listReturnVo = new ReturnVo<>();
+        listReturnVo.setCode(ReturnCode.SUCCESS);
+        listReturnVo.setData(content);
+        listReturnVo.setMsg("查询成功");
+        return listReturnVo;
+    }
 
+    @GetMapping("getModelById/{id}")
+    public ReturnVo<CalculateModel> getModelById(@PathVariable String id){
+        CalculateModel calculateModel = modelsRepository.findById(id).get();
+        List<RegionModel> info = regionRepository.findByModelId(id);
+        calculateModel.setTemplate(info);
+        ReturnVo<CalculateModel> calculateModelReturnVo = new ReturnVo<>();
+        calculateModelReturnVo.setMsg("查询成功");
+        calculateModelReturnVo.setCode(ReturnCode.SUCCESS);
+        calculateModelReturnVo.setData(calculateModel);
+        return calculateModelReturnVo;
+    }
 
 
 

@@ -3,7 +3,10 @@ package com.dragon.flow.model.calculate;
 import com.dragon.tools.common.BaseModel;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
+
+import java.util.List;
 
 @Data
 @Document(collection = "models")
@@ -16,7 +19,8 @@ public class CalculateModel extends BaseModel {
     private String name;
 
     // 模型
-    private String template;
+    @Transient
+    private List<RegionModel> template;
 
     // 描述
     private String description;
