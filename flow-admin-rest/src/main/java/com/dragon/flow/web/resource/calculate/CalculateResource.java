@@ -2,7 +2,9 @@ package com.dragon.flow.web.resource.calculate;
 
 import com.dragon.flow.config.DroolsConfig;
 import com.dragon.flow.config.modeler.KieUtilClass;
+import com.dragon.flow.model.calculate.CalculateModel;
 import com.dragon.flow.service.calculate.CalculateService;
+import com.dragon.flow.service.calculate.ModelsRepository;
 import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.vo.ReturnVo;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +30,9 @@ public class CalculateResource {
     @Autowired
     private CalculateService calculateService;
 
+    @Autowired
+    private ModelsRepository modelsRepository;
+
 //    @PostMapping("/reload")
 //    public ReturnVo<String> reload() throws Exception {
 //        droolsConfig.refreshBean();
@@ -47,7 +52,15 @@ public class CalculateResource {
         return calculateReturnVo;
     }
 
-
+    @PostMapping("saveModel")
+    public ReturnVo saveModel(@RequestBody CalculateModel calculateModel){
+        modelsRepository.insert(calculateModel);
+        ReturnVo<Object> returnVo = new ReturnVo<>();
+        returnVo.setCode(ReturnCode.SUCCESS);
+        returnVo.setData(null);
+        returnVo.setMsg("保存成功");
+        return returnVo;
+    }
 
 
 
