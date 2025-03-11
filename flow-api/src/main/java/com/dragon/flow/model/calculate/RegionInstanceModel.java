@@ -22,6 +22,6 @@ public class RegionInstanceModel extends BaseModel {
 
     private String relationOut;
 
-    private Object data;
+    private org.bson.Document data;
 
 }

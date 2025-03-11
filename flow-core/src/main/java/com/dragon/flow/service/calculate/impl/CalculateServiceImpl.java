@@ -9,6 +9,7 @@ import com.dragon.flow.service.calculate.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.beanutils.BeanUtils;
+import org.bson.Document;
 import org.kie.api.builder.KieFileSystem;
 import org.kie.api.event.rule.*;
 import org.kie.api.runtime.KieContainer;
@@ -68,8 +69,15 @@ public class CalculateServiceImpl implements CalculateService {
             regionInstanceModel.setRelationIn(item.getRelationIn());
             regionInstanceModel.setRelationOut(item.getRelationOut());
             try {
-                Object data = classMap.get(item.getInfo().getClassName()).newInstance();
-                regionInstanceModel.setData(data);
+                Class<?> aClass = classMap.get(item.getInfo().getClassName());
+                Object data = aClass.newInstance();
+                Document document = new Document();
+                for (Field field : aClass.getDeclaredFields()) {
+                    field.setAccessible(true); // 强制访问私有字段
+                    Object value = field.get(data);
+                    document.put(field.getName(), value);
+                }
+                regionInstanceModel.setData(document);
             } catch (InstantiationException e) {
                 e.printStackTrace();
             } catch (IllegalAccessException e) {

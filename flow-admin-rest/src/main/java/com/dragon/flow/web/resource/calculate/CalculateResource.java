@@ -3,12 +3,10 @@ package com.dragon.flow.web.resource.calculate;
 
 import com.dragon.flow.model.calculate.CalculateModel;
 import com.dragon.flow.model.calculate.InstanceModel;
+import com.dragon.flow.model.calculate.RegionInstanceModel;
 import com.dragon.flow.model.calculate.RegionModel;
 import com.dragon.flow.model.customer.Activity;
-import com.dragon.flow.service.calculate.CalculateService;
-import com.dragon.flow.service.calculate.InstanceRepository;
-import com.dragon.flow.service.calculate.ModelsRepository;
-import com.dragon.flow.service.calculate.RegionRepository;
+import com.dragon.flow.service.calculate.*;
 import com.dragon.flow.vo.pager.ParamVo;
 import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.vo.ReturnVo;
@@ -39,6 +37,9 @@ public class CalculateResource {
 
     @Autowired
     private InstanceRepository instanceRepository;
+
+    @Autowired
+    private RegionInstanceRepository regionInstanceRepository;
 
 //    @PostMapping("/reload")
 //    public ReturnVo<String> reload() throws Exception {
@@ -120,7 +121,7 @@ public class CalculateResource {
 
 
     @PostMapping("getInstancePageByModelId")
-    public ReturnVo<List<InstanceModel>> getInstancePageByModelId(ParamVo<InstanceModel> param){
+    public ReturnVo<List<InstanceModel>> getInstancePageByModelId(@RequestBody ParamVo<InstanceModel> param){
         int pageSize = param.getQuery().getPageSize();
         int pageNum = param.getQuery().getPageNum();
         InstanceModel entity = param.getEntity();
@@ -134,4 +135,11 @@ public class CalculateResource {
         listReturnVo.setData(content);
         return listReturnVo;
     }
+
+    @GetMapping("getRegionInstanceModelListById/{id}")
+    public ReturnVo<List<RegionInstanceModel>> getRegionInstanceModelListById(@PathVariable String id){
+        List<RegionInstanceModel> regionInstanceModelList = regionInstanceRepository.findAllByInstanceId(id);
+        return new ReturnVo<List<RegionInstanceModel>>(ReturnCode.SUCCESS,"查询成功",regionInstanceModelList);
+    }
+
 }
