@@ -1,7 +1,11 @@
 package com.dragon.flow.service.calculate.impl;
 
 import com.dragon.flow.config.modeler.KieUtilClass;
-import com.dragon.flow.service.calculate.CalculateService;
+import com.dragon.flow.model.calculate.CalculateModel;
+import com.dragon.flow.model.calculate.InstanceModel;
+import com.dragon.flow.model.calculate.RegionInstanceModel;
+import com.dragon.flow.model.calculate.RegionModel;
+import com.dragon.flow.service.calculate.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.beanutils.BeanUtils;
@@ -12,10 +16,13 @@ import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.FactHandle;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -24,6 +31,56 @@ public class CalculateServiceImpl implements CalculateService {
     @Autowired
     private KieUtilClass kieUtilClass;
 
+    @Autowired
+    private ModelsRepository modelsRepository;
+
+    @Autowired
+    private RegionRepository regionRepository;
+
+    @Autowired
+    private InstanceRepository instanceRepository;
+
+    @Autowired
+    private RegionInstanceRepository regionInstanceRepository;
+
+    @Override
+    public CalculateModel getModelById(String id) {
+        CalculateModel calculateModel = modelsRepository.findById(id).get();
+        List<RegionModel> info = regionRepository.findByModelId(id);
+        calculateModel.setTemplate(info);
+        return calculateModel;
+    }
+
+    @Override
+    @Transactional
+    public InstanceModel newInstance(InstanceModel instanceModel) throws Exception{
+        String modelId = instanceModel.getModelId();
+        InstanceModel save = instanceRepository.save(instanceModel);
+        String id = save.getId();
+        CalculateModel calculateModel = this.getModelById(modelId);
+        List<RegionModel> template = calculateModel.getTemplate();
+        Map<String, Class<?>> classMap = kieUtilClass.getClassMap();
+        List<RegionInstanceModel> regionInstanceModels = new ArrayList<>();
+        template.forEach(item->{
+            RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
+            regionInstanceModel.setInstanceId(id);
+            regionInstanceModel.setClassName(item.getInfo().getClassName());
+            regionInstanceModel.setRelationIn(item.getRelationIn());
+            regionInstanceModel.setRelationOut(item.getRelationOut());
+            try {
+                Object data = classMap.get(item.getInfo().getClassName()).newInstance();
+                regionInstanceModel.setData(data);
+            } catch (InstantiationException e) {
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
+            regionInstanceModels.add(regionInstanceModel);
+        });
+        List<RegionInstanceModel> regionInstanceModelSave = regionInstanceRepository.saveAll(regionInstanceModels);
+        save.setData(regionInstanceModelSave);
+        return save;
+    }
 
     @Override
     public Object getCalculateInstance(Object param, String typeName) throws Exception {

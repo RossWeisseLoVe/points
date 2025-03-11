@@ -2,9 +2,11 @@ package com.dragon.flow.web.resource.calculate;
 
 
 import com.dragon.flow.model.calculate.CalculateModel;
+import com.dragon.flow.model.calculate.InstanceModel;
 import com.dragon.flow.model.calculate.RegionModel;
 import com.dragon.flow.model.customer.Activity;
 import com.dragon.flow.service.calculate.CalculateService;
+import com.dragon.flow.service.calculate.InstanceRepository;
 import com.dragon.flow.service.calculate.ModelsRepository;
 import com.dragon.flow.service.calculate.RegionRepository;
 import com.dragon.flow.vo.pager.ParamVo;
@@ -18,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,6 +36,9 @@ public class CalculateResource {
 
     @Autowired
     private RegionRepository regionRepository;
+
+    @Autowired
+    private InstanceRepository instanceRepository;
 
 //    @PostMapping("/reload")
 //    public ReturnVo<String> reload() throws Exception {
@@ -55,27 +61,31 @@ public class CalculateResource {
 
     @Transactional
     @PostMapping("saveModel")
-    public ReturnVo saveModel(@RequestBody CalculateModel calculateModel){
+    public ReturnVo<CalculateModel> saveModel(@RequestBody CalculateModel calculateModel){
+        //根据id是否为空判断是插入还是更新
+        if(calculateModel.getId()==null){
+            calculateModel.setCreateTime(new Date());
+        }else{
+            calculateModel.setUpdateTime(new Date());
+        }
+        ReturnVo<CalculateModel> returnVo = new ReturnVo<>();
         List<RegionModel> regionModelList = calculateModel.getTemplate();
-        CalculateModel insert = modelsRepository.insert(calculateModel);
-        String id = insert.getId();
+        CalculateModel save = modelsRepository.save(calculateModel);
+        String id = save.getId();
         regionModelList.forEach(item->{
             item.setModelId(id);
         });
         regionRepository.saveAll(regionModelList);
-        ReturnVo<Object> returnVo = new ReturnVo<>();
+        returnVo.setData(calculateModel);
         returnVo.setCode(ReturnCode.SUCCESS);
-        returnVo.setData(null);
         returnVo.setMsg("保存成功");
         return returnVo;
     }
 
     @PostMapping("getModels")
-    public ReturnVo<List<CalculateModel>> getModels(@RequestBody ParamVo<Activity> param){
+    public ReturnVo<List<CalculateModel>> getModels(@RequestBody ParamVo<CalculateModel> param){
         int pageNum = param.getQuery().getPageNum();
         int pageSize = param.getQuery().getPageSize();
-        System.out.println("num"+pageNum);
-        System.out.println("size"+pageSize);
 //        CalculateModel calculateModel = new CalculateModel();
 //        Example<CalculateModel> calculateModelExample = Example.of(calculateModel);
         Pageable pageable = PageRequest.of(pageNum - 1,pageSize);
@@ -90,17 +100,38 @@ public class CalculateResource {
 
     @GetMapping("getModelById/{id}")
     public ReturnVo<CalculateModel> getModelById(@PathVariable String id){
-        CalculateModel calculateModel = modelsRepository.findById(id).get();
-        List<RegionModel> info = regionRepository.findByModelId(id);
-        calculateModel.setTemplate(info);
+        CalculateModel model = calculateService.getModelById(id);
         ReturnVo<CalculateModel> calculateModelReturnVo = new ReturnVo<>();
         calculateModelReturnVo.setMsg("查询成功");
         calculateModelReturnVo.setCode(ReturnCode.SUCCESS);
-        calculateModelReturnVo.setData(calculateModel);
+        calculateModelReturnVo.setData(model);
         return calculateModelReturnVo;
     }
 
+    @PostMapping("newInstance")
+    public ReturnVo<InstanceModel> newInstance(@RequestBody InstanceModel instanceModel) throws Exception {
+        InstanceModel one = calculateService.newInstance(instanceModel);
+        ReturnVo<InstanceModel> regionModelReturnVo = new ReturnVo<>();
+        regionModelReturnVo.setData(one);
+        regionModelReturnVo.setMsg("实例化成功");
+        regionModelReturnVo.setCode(ReturnCode.SUCCESS);
+        return regionModelReturnVo;
+    }
 
 
-
+    @PostMapping("getInstancePageByModelId")
+    public ReturnVo<List<InstanceModel>> getInstancePageByModelId(ParamVo<InstanceModel> param){
+        int pageSize = param.getQuery().getPageSize();
+        int pageNum = param.getQuery().getPageNum();
+        InstanceModel entity = param.getEntity();
+        Pageable pageable = PageRequest.of(pageNum - 1,pageSize);
+        Example<InstanceModel> example = Example.of(entity);
+        Page<InstanceModel> page = instanceRepository.findAll(example,pageable);
+        List<InstanceModel> content = page.getContent();
+        ReturnVo<List<InstanceModel>> listReturnVo = new ReturnVo<>();
+        listReturnVo.setCode(ReturnCode.SUCCESS);
+        listReturnVo.setMsg("查询成功");
+        listReturnVo.setData(content);
+        return listReturnVo;
+    }
 }
