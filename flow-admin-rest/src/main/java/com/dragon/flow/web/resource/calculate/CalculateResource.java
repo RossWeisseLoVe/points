@@ -11,6 +11,9 @@ import com.dragon.flow.vo.calculate.CalculateParamVo;
 import com.dragon.flow.vo.pager.ParamVo;
 import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.vo.ReturnVo;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Page;
@@ -144,13 +147,31 @@ public class CalculateResource {
     }
 
     @PostMapping("executeRegion")
-    public ReturnVo<Object> executeRegion(@RequestBody CalculateParamVo param){
+    public ReturnVo<RegionModel> executeRegion(@RequestBody CalculateParamVo param){
         Object data = param.getParam();
         //使用regionId和modelId套用模板
         String regionId = param.getRegionId();
         String modelId = param.getModelId();
+        RegionModel regionModel = new RegionModel();
+        regionModel.setModelId(modelId);
+        regionModel.setId(regionId);
+        Example<RegionModel> example = Example.of(regionModel);
+        //得到了模型中该计算域的信息，包括relationIn和Out
+        RegionModel region = regionRepository.findOne(example).get();
+//        ObjectMapper objectMapper = new ObjectMapper();
+//        ObjectNode objectNode = objectMapper.valueToTree(data);
+//        objectNode.fields().forEachRemaining(entry -> {
+//            String fieldName = entry.getKey();
+//            Object fieldValue = entry.getValue();
+//            System.out.println(fieldName + ": " + fieldValue);
+//            calculateService.callSetterMethod(data,fieldName,fieldValue);
+//        });
 
-
+        ReturnVo<RegionModel> regionModelReturnVo = new ReturnVo<>();
+        regionModelReturnVo.setData(region);
+        regionModelReturnVo.setMsg("查询成功");
+        regionModelReturnVo.setCode(ReturnCode.SUCCESS);
+        return regionModelReturnVo;
     }
 
 }

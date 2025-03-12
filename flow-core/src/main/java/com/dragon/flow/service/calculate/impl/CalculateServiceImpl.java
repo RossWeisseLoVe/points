@@ -109,7 +109,7 @@ public class CalculateServiceImpl implements CalculateService {
             String fieldName = entry.getKey();
             Object fieldValue = entry.getValue();
             System.out.println(fieldName + ": " + fieldValue);
-            callSetterMethod(instance,fieldName,fieldValue);
+            this.callSetterMethod(instance,fieldName,fieldValue);
         });
         //插入带值的实例
         kieSession.insert(instance);
@@ -131,8 +131,8 @@ public class CalculateServiceImpl implements CalculateService {
         return instance;
     }
 
-
-    public static void callSetterMethod(Object obj, String propertyName,Object fieldValue) {
+    @Override
+    public  void callSetterMethod(Object obj, String propertyName,Object fieldValue) {
         // 获取对象的 Class 对象
         try {
             BeanUtils.setProperty(obj, propertyName, fieldValue);

@@ -22,9 +22,9 @@ public class RegionInstanceModel extends BaseModel {
 
     private String ClassName;
 
-    private String relationIn;
+    private org.bson.Document relationIn;
 
-    private String relationOut;
+    private org.bson.Document relationOut;
 
     private org.bson.Document data;
 
