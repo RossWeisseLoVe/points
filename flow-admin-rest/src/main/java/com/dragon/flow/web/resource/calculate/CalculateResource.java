@@ -7,6 +7,7 @@ import com.dragon.flow.model.calculate.RegionInstanceModel;
 import com.dragon.flow.model.calculate.RegionModel;
 import com.dragon.flow.model.customer.Activity;
 import com.dragon.flow.service.calculate.*;
+import com.dragon.flow.vo.calculate.CalculateParamVo;
 import com.dragon.flow.vo.pager.ParamVo;
 import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.vo.ReturnVo;
@@ -140,6 +141,16 @@ public class CalculateResource {
     public ReturnVo<List<RegionInstanceModel>> getRegionInstanceModelListById(@PathVariable String id){
         List<RegionInstanceModel> regionInstanceModelList = regionInstanceRepository.findAllByInstanceId(id);
         return new ReturnVo<List<RegionInstanceModel>>(ReturnCode.SUCCESS,"查询成功",regionInstanceModelList);
+    }
+
+    @PostMapping("executeRegion")
+    public ReturnVo<Object> executeRegion(@RequestBody CalculateParamVo param){
+        Object data = param.getParam();
+        //使用regionId和modelId套用模板
+        String regionId = param.getRegionId();
+        String modelId = param.getModelId();
+
+
     }
 
 }

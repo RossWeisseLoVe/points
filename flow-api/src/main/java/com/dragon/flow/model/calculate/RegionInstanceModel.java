@@ -9,10 +9,14 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Document(collection = "regionInstance")
 public class RegionInstanceModel extends BaseModel {
 
+    //生成的实例中的每一个表单对象
+
     @Id
     private String id;
 
     private String instanceId;
+
+    private String description;
 
     private String regionId;
 

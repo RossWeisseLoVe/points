@@ -65,9 +65,11 @@ public class CalculateServiceImpl implements CalculateService {
         template.forEach(item->{
             RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
             regionInstanceModel.setInstanceId(id);
+            regionInstanceModel.setRegionId(item.getId());
             regionInstanceModel.setClassName(item.getInfo().getClassName());
             regionInstanceModel.setRelationIn(item.getRelationIn());
             regionInstanceModel.setRelationOut(item.getRelationOut());
+            regionInstanceModel.setDescription(item.getInfo().getDescription());
             try {
                 Class<?> aClass = classMap.get(item.getInfo().getClassName());
                 Object data = aClass.newInstance();
@@ -97,53 +99,7 @@ public class CalculateServiceImpl implements CalculateService {
         Map<String, Class<?>> clazzMap = kieUtilClass.getClassMap();
         KieContainer kieContainer = kieUtilClass.getKieContainer();
         KieSession kieSession = kieContainer.getKieBase().newKieSession();
-        kieSession.addEventListener(new DebugRuleRuntimeEventListener() {
-            @Override
-            public void objectInserted(ObjectInsertedEvent event) {
-                System.out.println("插入对象: " + event.getObject().toString());
-            }
-
-            @Override
-            public void objectUpdated(ObjectUpdatedEvent event) {
-                System.out.println("更新对象: " + event.getObject());
-            }
-
-        });
-
-        kieSession.addEventListener(new AgendaEventListener() {
-
-            @Override
-            public void afterMatchFired(AfterMatchFiredEvent event) {
-                System.out.println("触发的规则: " + event.getMatch().getRule().getName());
-            }
-            @Override
-            public void matchCreated(MatchCreatedEvent event) {}
-            @Override
-            public void matchCancelled(MatchCancelledEvent event) {}
-            @Override
-            public void beforeMatchFired(BeforeMatchFiredEvent event) {}
-            @Override
-            public void agendaGroupPopped(AgendaGroupPoppedEvent event) {}
-            @Override
-            public void agendaGroupPushed(AgendaGroupPushedEvent event) {}
-            @Override
-            public void beforeRuleFlowGroupActivated(RuleFlowGroupActivatedEvent event) {}
-            @Override
-            public void afterRuleFlowGroupActivated(RuleFlowGroupActivatedEvent event) {}
-
-            @Override
-            public void beforeRuleFlowGroupDeactivated(RuleFlowGroupDeactivatedEvent ruleFlowGroupDeactivatedEvent) {
-
-            }
-
-            @Override
-            public void afterRuleFlowGroupDeactivated(RuleFlowGroupDeactivatedEvent ruleFlowGroupDeactivatedEvent) {
-
-            }
-        });
-
         //创建实例
-
         System.out.println(clazzMap.get(fullName).getClassLoader());
         Object instance = clazzMap.get(fullName).newInstance();
         //从Object接收的param中取出付给新建的实例
