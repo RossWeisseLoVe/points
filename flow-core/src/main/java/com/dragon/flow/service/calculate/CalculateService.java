@@ -7,7 +7,7 @@ import com.dragon.tools.vo.ReturnVo;
 
 public interface CalculateService {
 
-    public Object getCalculateInstance(CalculateParamVo  param, String typeName) throws Exception;
+    public Object getCalculateInstance(CalculateParamVo  param) throws Exception;
 
     public CalculateModel getModelById(String id);
 

@@ -6,6 +6,7 @@ import com.dragon.flow.model.calculate.InstanceModel;
 import com.dragon.flow.model.calculate.RegionInstanceModel;
 import com.dragon.flow.model.calculate.RegionModel;
 import com.dragon.flow.service.calculate.*;
+import com.dragon.flow.vo.calculate.CalculateParamVo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.beanutils.BeanUtils;
@@ -16,15 +17,13 @@ import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.FactHandle;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Example;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class CalculateServiceImpl implements CalculateService {
@@ -93,18 +92,32 @@ public class CalculateServiceImpl implements CalculateService {
     }
 
     @Override
-    public Object getCalculateInstance(Object param, String typeName) throws Exception {
-        String packageName = "com.dragon.flow.model.test";  //默认包名
-        String fullName = String.format("%s.%s", packageName, typeName);  //全类名
+    public Object getCalculateInstance(CalculateParamVo param) throws Exception {
+        Object data = param.getParam();
+        String fullName = param.getTypeName();
+        //使用regionId和modelId套用模板
+        String regionId = param.getRegionId();
+        String modelId = param.getModelId();
+        String regionInstanceId = param.getRegionInstanceId();
+        RegionModel regionModel = new RegionModel();
+        regionModel.setModelId(modelId);
+        regionModel.setId(regionId);
+        Example<RegionModel> example = Example.of(regionModel);
+        //得到了模型中该计算域的信息，包括relationIn和Out
+        RegionModel region = regionRepository.findOne(example).get();
         Map<String, Class<?>> clazzMap = kieUtilClass.getClassMap();
         KieContainer kieContainer = kieUtilClass.getKieContainer();
         KieSession kieSession = kieContainer.getKieBase().newKieSession();
         //创建实例
-        System.out.println(clazzMap.get(fullName).getClassLoader());
         Object instance = clazzMap.get(fullName).newInstance();
         //从Object接收的param中取出付给新建的实例
         ObjectMapper objectMapper = new ObjectMapper();
-        ObjectNode objectNode = objectMapper.valueToTree(param);
+        ObjectNode objectNode = objectMapper.valueToTree(data);
+        //用于记录是否达到计算的条件
+        // 1是数据是否发生变化
+        RegionInstanceModel regionInstanceModelFromMongo = regionInstanceRepository.findById(regionInstanceId).get();
+        Document dataFromMongo = regionInstanceModelFromMongo.getData();
+        boolean flag = true;
         objectNode.fields().forEachRemaining(entry -> {
             String fieldName = entry.getKey();
             Object fieldValue = entry.getValue();
@@ -113,14 +126,25 @@ public class CalculateServiceImpl implements CalculateService {
         });
         //插入带值的实例
         kieSession.insert(instance);
-        int i = kieSession.fireAllRules();
-        Collection<FactHandle> factHandles = kieSession.getFactHandles();
-        for (FactHandle element : factHandles) {
-            System.out.println(element.toString());
+        kieSession.fireAllRules();
+        kieSession.dispose();
+        //将结果存入数据库
+        try {
+            Class<?> aClass = clazzMap.get(fullName);
+            Document document = new Document();
+            for (Field field : aClass.getDeclaredFields()) {
+                field.setAccessible(true); // 强制访问私有字段
+                Object value = field.get(instance);
+                document.put(field.getName(), value);
+            }
+            regionInstanceModelFromMongo.setData(document);
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
         }
 
-        System.out.println("触发规则条数："+i);
-        kieSession.dispose();
+        //还需要使用乐观锁处理线程安全问题
+
+        regionInstanceRepository.save(regionInstanceModelFromMongo);
         ObjectMapper objectMapper1 = new ObjectMapper();
         ObjectNode objectNode1 = objectMapper1.valueToTree(instance);
         objectNode1.fields().forEachRemaining(entry -> {

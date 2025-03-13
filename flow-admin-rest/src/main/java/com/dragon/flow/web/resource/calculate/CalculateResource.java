@@ -54,15 +54,15 @@ public class CalculateResource {
 //        return stringReturnVo;
 //    }
 
-    @PostMapping("getResult")
-    public ReturnVo<Object> getCalculateInstance(@RequestBody Object param,@RequestParam String typeName) throws Exception {
-        Object calculateInstance = calculateService.getCalculateInstance(param, typeName);
-        ReturnVo<Object> calculateReturnVo = new ReturnVo<>();
-        calculateReturnVo.setCode(ReturnCode.SUCCESS);
-        calculateReturnVo.setData(calculateInstance);
-        calculateReturnVo.setMsg("计算成功");
-        return calculateReturnVo;
-    }
+//    @PostMapping("getResult")
+//    public ReturnVo<Object> getCalculateInstance(@RequestBody Object param,@RequestParam String typeName) throws Exception {
+//        Object calculateInstance = calculateService.getCalculateInstance(param, typeName);
+//        ReturnVo<Object> calculateReturnVo = new ReturnVo<>();
+//        calculateReturnVo.setCode(ReturnCode.SUCCESS);
+//        calculateReturnVo.setData(calculateInstance);
+//        calculateReturnVo.setMsg("计算成功");
+//        return calculateReturnVo;
+//    }
 
     @Transactional
     @PostMapping("saveModel")
@@ -146,32 +146,28 @@ public class CalculateResource {
         return new ReturnVo<List<RegionInstanceModel>>(ReturnCode.SUCCESS,"查询成功",regionInstanceModelList);
     }
 
-    @PostMapping("executeRegion")
-    public ReturnVo<RegionModel> executeRegion(@RequestBody CalculateParamVo param){
-        Object data = param.getParam();
-        //使用regionId和modelId套用模板
+    @PostMapping("getRegionInstanceByRegionIdAndInstanceId")
+    public ReturnVo<RegionInstanceModel> getRegionInstanceByRegionIdAndInstanceId(@RequestBody CalculateParamVo param){
         String regionId = param.getRegionId();
-        String modelId = param.getModelId();
-        RegionModel regionModel = new RegionModel();
-        regionModel.setModelId(modelId);
-        regionModel.setId(regionId);
-        Example<RegionModel> example = Example.of(regionModel);
-        //得到了模型中该计算域的信息，包括relationIn和Out
-        RegionModel region = regionRepository.findOne(example).get();
-//        ObjectMapper objectMapper = new ObjectMapper();
-//        ObjectNode objectNode = objectMapper.valueToTree(data);
-//        objectNode.fields().forEachRemaining(entry -> {
-//            String fieldName = entry.getKey();
-//            Object fieldValue = entry.getValue();
-//            System.out.println(fieldName + ": " + fieldValue);
-//            calculateService.callSetterMethod(data,fieldName,fieldValue);
-//        });
+        String instanceId = param.getInstanceId();
+        RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
+        regionInstanceModel.setInstanceId(instanceId);
+        regionInstanceModel.setRegionId(regionId);
+        Example<RegionInstanceModel> example = Example.of(regionInstanceModel);
+        RegionInstanceModel regionInstance = regionInstanceRepository.findOne(example).get();
+        ReturnVo<RegionInstanceModel> regionInstanceModelReturnVo = new ReturnVo<>(ReturnCode.SUCCESS,"查询成功",regionInstance);
+        return regionInstanceModelReturnVo;
+    }
 
-        ReturnVo<RegionModel> regionModelReturnVo = new ReturnVo<>();
-        regionModelReturnVo.setData(region);
+    @PostMapping("executeRegion")
+    public ReturnVo<Object> executeRegion(@RequestBody CalculateParamVo param) throws Exception {
+        Object calculateInstance = calculateService.getCalculateInstance(param);
+        ReturnVo<Object> regionModelReturnVo = new ReturnVo<>();
+        regionModelReturnVo.setData(calculateInstance);
         regionModelReturnVo.setMsg("查询成功");
         regionModelReturnVo.setCode(ReturnCode.SUCCESS);
         return regionModelReturnVo;
     }
+
 
 }
