@@ -150,7 +150,7 @@ public class CalculateServiceImpl implements CalculateService {
         objectNode1.fields().forEachRemaining(entry -> {
             String fieldName = entry.getKey();
             Object fieldValue = entry.getValue();
-            System.out.println(fieldName + ": :::::" + fieldValue);
+            System.out.println(fieldName + ": :::::" + fieldValue+ ": :::::" + fieldValue.getClass());
         });
         return instance;
     }

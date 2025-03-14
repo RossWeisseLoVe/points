@@ -15,10 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Example;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -91,10 +88,14 @@ public class CalculateResource {
     public ReturnVo<List<CalculateModel>> getModels(@RequestBody ParamVo<CalculateModel> param){
         int pageNum = param.getQuery().getPageNum();
         int pageSize = param.getQuery().getPageSize();
-//        CalculateModel calculateModel = new CalculateModel();
-//        Example<CalculateModel> calculateModelExample = Example.of(calculateModel);
+        CalculateModel calculateModel = new CalculateModel();
+        calculateModel.setName(param.getEntity().getName());
+        ExampleMatcher matcher = ExampleMatcher.matching()
+                .withStringMatcher(ExampleMatcher.StringMatcher.CONTAINING) // 模糊匹配
+                .withIgnoreCase(true);
+        Example<CalculateModel> calculateModelExample = Example.of(calculateModel,matcher);
         Pageable pageable = PageRequest.of(pageNum - 1,pageSize);
-        Page<CalculateModel> all = modelsRepository.findAll(pageable);
+        Page<CalculateModel> all = modelsRepository.findAll(calculateModelExample,pageable);
         List<CalculateModel> content = all.getContent();
         ReturnVo<List<CalculateModel>> listReturnVo = new ReturnVo<>();
         listReturnVo.setCode(ReturnCode.SUCCESS);
@@ -123,6 +124,15 @@ public class CalculateResource {
         return regionModelReturnVo;
     }
 
+    @PostMapping("updateInstance")
+    public ReturnVo<InstanceModel> updateInstance(@RequestBody InstanceModel instanceModel) throws Exception {
+        InstanceModel save = instanceRepository.save(instanceModel);
+        ReturnVo<InstanceModel> regionModelReturnVo = new ReturnVo<>();
+        regionModelReturnVo.setData(save);
+        regionModelReturnVo.setMsg("更新成功");
+        regionModelReturnVo.setCode(ReturnCode.SUCCESS);
+        return regionModelReturnVo;
+    }
 
     @PostMapping("getInstancePageByModelId")
     public ReturnVo<List<InstanceModel>> getInstancePageByModelId(@RequestBody ParamVo<InstanceModel> param){
@@ -130,7 +140,10 @@ public class CalculateResource {
         int pageNum = param.getQuery().getPageNum();
         InstanceModel entity = param.getEntity();
         Pageable pageable = PageRequest.of(pageNum - 1,pageSize);
-        Example<InstanceModel> example = Example.of(entity);
+        ExampleMatcher matcher = ExampleMatcher.matching()
+                .withStringMatcher(ExampleMatcher.StringMatcher.CONTAINING) // 模糊匹配
+                .withIgnoreCase(true);
+        Example<InstanceModel> example = Example.of(entity,matcher);
         Page<InstanceModel> page = instanceRepository.findAll(example,pageable);
         List<InstanceModel> content = page.getContent();
         ReturnVo<List<InstanceModel>> listReturnVo = new ReturnVo<>();
@@ -168,6 +181,7 @@ public class CalculateResource {
         regionModelReturnVo.setCode(ReturnCode.SUCCESS);
         return regionModelReturnVo;
     }
+
 
 
 }
