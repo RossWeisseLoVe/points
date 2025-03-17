@@ -7,15 +7,14 @@ import com.dragon.flow.model.calculate.RegionInstanceModel;
 import com.dragon.flow.model.calculate.RegionModel;
 import com.dragon.flow.service.calculate.*;
 import com.dragon.flow.vo.calculate.CalculateParamVo;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.beanutils.BeanUtils;
 import org.bson.Document;
 import org.kie.api.builder.KieFileSystem;
-import org.kie.api.event.rule.*;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
-import org.kie.api.runtime.rule.FactHandle;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Example;
 import org.springframework.stereotype.Service;
@@ -24,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 public class CalculateServiceImpl implements CalculateService {
@@ -92,19 +93,21 @@ public class CalculateServiceImpl implements CalculateService {
     }
 
     @Override
-    public Object getCalculateInstance(CalculateParamVo param) throws Exception {
+    public Object getCalculateInstance(CalculateParamVo param , boolean isFromWeb) throws Exception {
+        System.out.println("=====================================");
         Object data = param.getParam();
         String fullName = param.getTypeName();
         //使用regionId和modelId套用模板
         String regionId = param.getRegionId();
         String modelId = param.getModelId();
-        String regionInstanceId = param.getRegionInstanceId();
+        String instanceId = param.getInstanceId();
         RegionModel regionModel = new RegionModel();
         regionModel.setModelId(modelId);
         regionModel.setId(regionId);
         Example<RegionModel> example = Example.of(regionModel);
         //得到了模型中该计算域的信息，包括relationIn和Out
         RegionModel region = regionRepository.findOne(example).get();
+        Document relationOut = region.getRelationOut();
         Map<String, Class<?>> clazzMap = kieUtilClass.getClassMap();
         KieContainer kieContainer = kieUtilClass.getKieContainer();
         KieSession kieSession = kieContainer.getKieBase().newKieSession();
@@ -114,20 +117,56 @@ public class CalculateServiceImpl implements CalculateService {
         ObjectMapper objectMapper = new ObjectMapper();
         ObjectNode objectNode = objectMapper.valueToTree(data);
         //用于记录是否达到计算的条件
-        // 1是数据是否发生变化
-        RegionInstanceModel regionInstanceModelFromMongo = regionInstanceRepository.findById(regionInstanceId).get();
-        Document dataFromMongo = regionInstanceModelFromMongo.getData();
-        boolean flag = true;
-        objectNode.fields().forEachRemaining(entry -> {
-            String fieldName = entry.getKey();
-            Object fieldValue = entry.getValue();
-            System.out.println(fieldName + ": " + fieldValue);
-            this.callSetterMethod(instance,fieldName,fieldValue);
-        });
+        AtomicBoolean flag = new AtomicBoolean(false);
+        if(isFromWeb){
+            //从客户端传来的请求
+            String regionInstanceId = param.getRegionInstanceId();
+            RegionInstanceModel regionInstanceModelFromMongo = regionInstanceRepository.findById(regionInstanceId).get();
+            Document dataFromMongo = regionInstanceModelFromMongo.getData();
+            objectNode.fields().forEachRemaining(entry -> {
+                String fieldName = entry.getKey();
+                Class<? extends JsonNode> aClass = entry.getValue().getClass();
+                Object fieldValue = entry.getValue();
+                JsonNode cast = aClass.cast(dataFromMongo.get(fieldName));
+                if(cast!=null&&!cast.equals(fieldValue)){
+                    //如果数据发生改变即可计算
+                    flag.set(true);
+                }
+                System.out.println(fieldName + ": " + fieldValue + ":::" +cast);
+                this.callSetterMethod(instance,fieldName,fieldValue);
+            });
+        }else{
+            //程序自己异步调用
+            RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
+            regionInstanceModel.setInstanceId(instanceId);
+            regionInstanceModel.setRegionId(regionId);
+            Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
+            RegionInstanceModel regionInstanceModelFromMongo = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
+            Document dataFromMongo = regionInstanceModelFromMongo.getData();
+            objectNode.fields().forEachRemaining(entry -> {
+                String fieldName = entry.getKey();
+                Class<? extends JsonNode> aClass = entry.getValue().getClass();
+                Object fieldValue = entry.getValue();
+                JsonNode cast = aClass.cast(dataFromMongo.get(fieldName));
+                if(!fieldValue.equals(null)){
+                    //传入的值如果非空就赋给该属性
+                    this.callSetterMethod(instance,fieldName,fieldValue);
+                    flag.set(true);
+                }else{
+                    //如果空则赋数据库查出的值
+                    this.callSetterMethod(instance,fieldName,cast);
+                }
+                System.out.println(fieldName + ": " + fieldValue + ":::" +cast);
+            });
+        }
+//        if(flag.get()==false){
+//            return null;
+//        }
         //插入带值的实例
         kieSession.insert(instance);
         kieSession.fireAllRules();
         kieSession.dispose();
+        RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
         //将结果存入数据库
         try {
             Class<?> aClass = clazzMap.get(fullName);
@@ -137,14 +176,14 @@ public class CalculateServiceImpl implements CalculateService {
                 Object value = field.get(instance);
                 document.put(field.getName(), value);
             }
-            regionInstanceModelFromMongo.setData(document);
+            regionInstanceModel.setData(document);
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         }
 
         //还需要使用乐观锁处理线程安全问题
 
-        regionInstanceRepository.save(regionInstanceModelFromMongo);
+        regionInstanceRepository.save(regionInstanceModel);
         ObjectMapper objectMapper1 = new ObjectMapper();
         ObjectNode objectNode1 = objectMapper1.valueToTree(instance);
         objectNode1.fields().forEachRemaining(entry -> {
@@ -152,8 +191,42 @@ public class CalculateServiceImpl implements CalculateService {
             Object fieldValue = entry.getValue();
             System.out.println(fieldName + ": :::::" + fieldValue+ ": :::::" + fieldValue.getClass());
         });
+
+        for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
+            String key = entry.getKey();
+            List<Document> value = (List<Document>) entry.getValue();
+            value.forEach(item->{
+                System.out.println("Key: " + key + ", Value: " + item.toString());
+                String targetObjId = (String) item.get("targetObjId");
+                String targetPropertyName = (String) item.get("targetPropertyName");
+                CalculateParamVo calculateParamVo = new CalculateParamVo();
+                calculateParamVo.setRegionId(targetObjId);
+                calculateParamVo.setInstanceId(instanceId);
+                calculateParamVo.setModelId(modelId);
+                Document document = new Document();
+                document.put(targetPropertyName,regionInstanceModel.getData().get(key));
+                String className = regionRepository.findById(regionId).get().getInfo().getClassName();
+                calculateParamVo.setParam(document);
+                calculateParamVo.setTypeName(className);
+                //异步调用
+                CompletableFuture.runAsync(()->{
+                    try {
+                        this.getCalculateInstance(calculateParamVo,false);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                });
+            });
+        }
+
+        //发送至下一节点
         return instance;
     }
+
+    public void autoSetValueAndCalculate(){
+
+    }
+
 
     @Override
     public  void callSetterMethod(Object obj, String propertyName,Object fieldValue) {

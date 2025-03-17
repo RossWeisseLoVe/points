@@ -174,7 +174,7 @@ public class CalculateResource {
 
     @PostMapping("executeRegion")
     public ReturnVo<Object> executeRegion(@RequestBody CalculateParamVo param) throws Exception {
-        Object calculateInstance = calculateService.getCalculateInstance(param);
+        Object calculateInstance = calculateService.getCalculateInstance(param,true);
         ReturnVo<Object> regionModelReturnVo = new ReturnVo<>();
         regionModelReturnVo.setData(calculateInstance);
         regionModelReturnVo.setMsg("查询成功");
