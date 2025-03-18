@@ -7,6 +7,8 @@ import com.dragon.flow.model.calculate.RegionInstanceModel;
 import com.dragon.flow.model.calculate.RegionModel;
 import com.dragon.flow.service.calculate.*;
 import com.dragon.flow.vo.calculate.CalculateParamVo;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -108,7 +110,9 @@ public class CalculateServiceImpl implements CalculateService {
         Example<RegionModel> example = Example.of(regionModel);
         //得到了模型中该计算域的信息，包括relationIn和Out
         RegionModel region = regionRepository.findOne(example).get();
+        //需要提供信息给对方的邻居节点
         Document relationOut = region.getRelationOut();
+        //动态类map
         Map<String, Class<?>> clazzMap = kieUtilClass.getClassMap();
         KieContainer kieContainer = kieUtilClass.getKieContainer();
         KieSession kieSession = kieContainer.getKieBase().newKieSession();
@@ -118,7 +122,7 @@ public class CalculateServiceImpl implements CalculateService {
         //从Object接收的param中取出付给新建的实例
         ObjectMapper objectMapper = new ObjectMapper();
         ObjectNode objectNode = objectMapper.valueToTree(data);
-        //用于记录是否达到计算的条件
+        //用于记录是否达到计算的条件，默认不能计算
         AtomicBoolean flag = new AtomicBoolean(false);
         String regionInstanceId = param.getRegionInstanceId();
         if(isFromWeb){
@@ -131,13 +135,16 @@ public class CalculateServiceImpl implements CalculateService {
                 try {
                     Class<?> aClass = regionClass.getDeclaredField(fieldName).getType();
                     Object cast = aClass.cast(dataFromMongo.get(fieldName));
-                    if(cast!=null&&!cast.equals(fieldValue)){
+                    if(cast!=null&&!cast.equals(objectMapper.treeToValue((TreeNode) fieldValue,aClass))){
                         //如果数据发生改变即可计算
+                        flag.set(true);
+                    }
+                    if(cast==null&&fieldValue!=null){
                         flag.set(true);
                     }
                     System.out.println(fieldName + ": " + fieldValue + ":::" +cast);
                     this.callSetterMethod(instance,fieldName,fieldValue);
-                } catch (NoSuchFieldException e) {
+                } catch (NoSuchFieldException | JsonProcessingException e) {
                     e.printStackTrace();
                 }
             });
@@ -180,9 +187,9 @@ public class CalculateServiceImpl implements CalculateService {
                 System.out.println(fieldName + ": " + fieldValue + ":::" +cast);
             }
         }
-//        if(flag.get()==false){
-//            return null;
-//        }
+        if(flag.get()==false){
+            return null;
+        }
         //插入带值的实例
         kieSession.insert(instance);
         kieSession.fireAllRules();
@@ -194,19 +201,19 @@ public class CalculateServiceImpl implements CalculateService {
             for (Field field : regionClass.getDeclaredFields()) {
                 field.setAccessible(true); // 强制访问私有字段
                 Object value = field.get(instance);
-                System.out.println("value-------------"+value);
+                System.out.println("value-------------"+value+"-------"+value.getClass());
                 document.put(field.getName(), value);
             }
             regionInstanceModel.setData(document);
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         }
-
         //还需要使用乐观锁处理线程安全问题
         regionInstanceModel.setId(regionInstanceId);
         regionInstanceModel.setInstanceId(instanceId);
         regionInstanceModel.setRegionId(regionId);
         regionInstanceRepository.save(regionInstanceModel);
+
         ObjectMapper objectMapper1 = new ObjectMapper();
         ObjectNode objectNode1 = objectMapper1.valueToTree(instance);
         objectNode1.fields().forEachRemaining(entry -> {
@@ -215,41 +222,39 @@ public class CalculateServiceImpl implements CalculateService {
             System.out.println(fieldName + ": :::::" + fieldValue+ ": :::::" + fieldValue.getClass());
         });
 
-        for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
-            String key = entry.getKey();
-            List<Document> value = (List<Document>) entry.getValue();
-            value.forEach(item->{
-                Object dataValue = regionInstanceModel.getData().get(key);
-                if(dataValue==null){
-                    return;
-                }
-                System.out.println("Key: " + key + ", Value: " + item.toString());
-                String targetObjId = (String) item.get("targetObjId");
-                String targetPropertyName = (String) item.get("targetPropertyName");
-                CalculateParamVo calculateParamVo = new CalculateParamVo();
-                calculateParamVo.setRegionId(targetObjId);
-                calculateParamVo.setInstanceId(instanceId);
-                calculateParamVo.setModelId(modelId);
-                Document document = new Document();
-                document.put(targetPropertyName,dataValue);
-                String className = regionRepository.findById(targetObjId).get().getInfo().getClassName();
-                calculateParamVo.setParam(document);
-                calculateParamVo.setTypeName(className);
-                //异步调用
-                CompletableFuture.runAsync(()->{
-                    try {
-                        this.getCalculateInstance(calculateParamVo,false);
-                    } catch (Exception e) {
-                        e.printStackTrace();
+        if(relationOut!=null){
+            for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
+                String key = entry.getKey();
+                List<Document> value = (List<Document>) entry.getValue();
+                value.forEach(item->{
+                    Object dataValue = regionInstanceModel.getData().get(key);
+                    if(dataValue==null){
+                        return;
                     }
+                    System.out.println("Key: " + key + ", Value: " + item.toString());
+                    String targetObjId = (String) item.get("targetObjId");
+                    String targetPropertyName = (String) item.get("targetPropertyName");
+                    CalculateParamVo calculateParamVo = new CalculateParamVo();
+                    calculateParamVo.setRegionId(targetObjId);
+                    calculateParamVo.setInstanceId(instanceId);
+                    calculateParamVo.setModelId(modelId);
+                    Document document = new Document();
+                    document.put(targetPropertyName,dataValue);
+                    String className = regionRepository.findById(targetObjId).get().getInfo().getClassName();
+                    calculateParamVo.setParam(document);
+                    calculateParamVo.setTypeName(className);
+                    //异步调用
+                    CompletableFuture.runAsync(()->{
+                        try {
+                            this.getCalculateInstance(calculateParamVo,false);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    });
                 });
-            });
+            }
         }
         return instance;
-    }
-
-    public void autoSetValueAndCalculate(){
-
     }
 
 
@@ -263,17 +268,4 @@ public class CalculateServiceImpl implements CalculateService {
         }
     }
 
-    public static void printKieFileSystemContents(KieFileSystem kieFileSystem) {
-        try {
-            Field field = kieFileSystem.getClass().getDeclaredField("files");
-            field.setAccessible(true);
-            Map<String, byte[]> files = (Map<String, byte[]>) field.get(kieFileSystem);
-            System.out.println("===== KieFileSystem 中的文件列表 =====");
-            files.forEach((path, content) -> {
-                System.out.println("路径: " + path + ", 大小: " + content.length + " 字节");
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 }

@@ -176,9 +176,15 @@ public class CalculateResource {
     public ReturnVo<Object> executeRegion(@RequestBody CalculateParamVo param) throws Exception {
         Object calculateInstance = calculateService.getCalculateInstance(param,true);
         ReturnVo<Object> regionModelReturnVo = new ReturnVo<>();
-        regionModelReturnVo.setData(calculateInstance);
-        regionModelReturnVo.setMsg("查询成功");
-        regionModelReturnVo.setCode(ReturnCode.SUCCESS);
+        if (calculateInstance==null){
+            regionModelReturnVo.setData(null);
+            regionModelReturnVo.setCode(ReturnCode.WARN);
+            regionModelReturnVo.setMsg("数据未发生改变");
+        }else{
+            regionModelReturnVo.setData(calculateInstance);
+            regionModelReturnVo.setMsg("查询成功");
+            regionModelReturnVo.setCode(ReturnCode.SUCCESS);
+        }
         return regionModelReturnVo;
     }
 
