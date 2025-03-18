@@ -5,8 +5,10 @@ import com.dragon.flow.model.calculate.CalculateModel;
 import com.dragon.flow.model.calculate.InstanceModel;
 import com.dragon.flow.model.calculate.RegionInstanceModel;
 import com.dragon.flow.model.calculate.RegionModel;
+import com.dragon.flow.model.generate.PropertyDefinition;
 import com.dragon.flow.service.calculate.*;
 import com.dragon.flow.vo.calculate.CalculateParamVo;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -28,6 +30,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 public class CalculateServiceImpl implements CalculateService {
@@ -110,6 +114,7 @@ public class CalculateServiceImpl implements CalculateService {
         Example<RegionModel> example = Example.of(regionModel);
         //得到了模型中该计算域的信息，包括relationIn和Out
         RegionModel region = regionRepository.findOne(example).get();
+        List<PropertyDefinition> properties = region.getInfo().getProperties();
         //需要提供信息给对方的邻居节点
         Document relationOut = region.getRelationOut();
         //动态类map
@@ -121,6 +126,7 @@ public class CalculateServiceImpl implements CalculateService {
         Class<?> regionClass = clazzMap.get(fullName);
         //从Object接收的param中取出付给新建的实例
         ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         ObjectNode objectNode = objectMapper.valueToTree(data);
         //用于记录是否达到计算的条件，默认不能计算
         AtomicBoolean flag = new AtomicBoolean(false);
@@ -135,11 +141,10 @@ public class CalculateServiceImpl implements CalculateService {
                 try {
                     Class<?> aClass = regionClass.getDeclaredField(fieldName).getType();
                     Object cast = aClass.cast(dataFromMongo.get(fieldName));
-                    if(cast!=null&&!cast.equals(objectMapper.treeToValue((TreeNode) fieldValue,aClass))){
-                        //如果数据发生改变即可计算
-                        flag.set(true);
-                    }
                     if(cast==null&&fieldValue!=null){
+                        flag.set(true);
+                    }else if (cast!=null&&!cast.equals(objectMapper.treeToValue((TreeNode) fieldValue,aClass))){
+                        //如果数据发生改变即可计算
                         flag.set(true);
                     }
                     System.out.println(fieldName + ": " + fieldValue + ":::" +cast);
@@ -148,6 +153,7 @@ public class CalculateServiceImpl implements CalculateService {
                     e.printStackTrace();
                 }
             });
+
         }else{
             //程序自己异步调用
             RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
@@ -165,9 +171,13 @@ public class CalculateServiceImpl implements CalculateService {
                 }
                 Class<?> aClass = entry.getValue().getClass();
                 Object cast = aClass.cast(dataFromMongo.get(fieldName));
-                if(fieldValue!=null){
+                if(fieldValue==null&&cast!=null){
                     //传入的值如果非空就赋给该属性
+                    this.callSetterMethod(instance,fieldName,cast);
+                    System.out.println("写入值为cast："+cast);
+                }else{
                     this.callSetterMethod(instance,fieldName,fieldValue);
+                    System.out.println("写入值为fieldValue："+fieldValue);
                 }
                 System.out.println(fieldName + ": " + fieldValue + ":::" +cast);
             }
@@ -187,6 +197,12 @@ public class CalculateServiceImpl implements CalculateService {
                 System.out.println(fieldName + ": " + fieldValue + ":::" +cast);
             }
         }
+        ObjectNode objectNode1 = objectMapper.valueToTree(instance);
+        objectNode1.fields().forEachRemaining(entry -> {
+            String fieldName = entry.getKey();
+            Object fieldValue = entry.getValue();
+            System.out.println(fieldName + ": :::::" + fieldValue+ ": :::::" + fieldValue.getClass());
+        });
         if(flag.get()==false){
             return null;
         }
@@ -201,7 +217,7 @@ public class CalculateServiceImpl implements CalculateService {
             for (Field field : regionClass.getDeclaredFields()) {
                 field.setAccessible(true); // 强制访问私有字段
                 Object value = field.get(instance);
-                System.out.println("value-------------"+value+"-------"+value.getClass());
+//                System.out.println("value-------------"+value+"-------"+value.getClass());
                 document.put(field.getName(), value);
             }
             regionInstanceModel.setData(document);
@@ -214,14 +230,7 @@ public class CalculateServiceImpl implements CalculateService {
         regionInstanceModel.setRegionId(regionId);
         regionInstanceRepository.save(regionInstanceModel);
 
-        ObjectMapper objectMapper1 = new ObjectMapper();
-        ObjectNode objectNode1 = objectMapper1.valueToTree(instance);
-        objectNode1.fields().forEachRemaining(entry -> {
-            String fieldName = entry.getKey();
-            Object fieldValue = entry.getValue();
-            System.out.println(fieldName + ": :::::" + fieldValue+ ": :::::" + fieldValue.getClass());
-        });
-
+        final Lock lock = new ReentrantLock();
         if(relationOut!=null){
             for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
                 String key = entry.getKey();
@@ -245,10 +254,14 @@ public class CalculateServiceImpl implements CalculateService {
                     calculateParamVo.setTypeName(className);
                     //异步调用
                     CompletableFuture.runAsync(()->{
+                        //此处会有线程安全问题，需要解决
+                        lock.lock();
                         try {
                             this.getCalculateInstance(calculateParamVo,false);
                         } catch (Exception e) {
                             e.printStackTrace();
+                        }finally {
+                            lock.unlock();
                         }
                     });
                 });
