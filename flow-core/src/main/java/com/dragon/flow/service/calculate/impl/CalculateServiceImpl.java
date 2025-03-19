@@ -131,9 +131,10 @@ public class CalculateServiceImpl implements CalculateService {
         //用于记录是否达到计算的条件，默认不能计算
         AtomicBoolean flag = new AtomicBoolean(false);
         String regionInstanceId = param.getRegionInstanceId();
+        RegionInstanceModel regionInstanceModelFromMongo;
         if(isFromWeb){
             //从客户端传来的请求
-            RegionInstanceModel regionInstanceModelFromMongo = regionInstanceRepository.findById(regionInstanceId).get();
+            regionInstanceModelFromMongo = regionInstanceRepository.findById(regionInstanceId).get();
             Document dataFromMongo = regionInstanceModelFromMongo.getData();
             objectNode.fields().forEachRemaining(entry -> {
                 String fieldName = entry.getKey();
@@ -160,7 +161,7 @@ public class CalculateServiceImpl implements CalculateService {
             regionInstanceModel.setInstanceId(instanceId);
             regionInstanceModel.setRegionId(regionId);
             Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
-            RegionInstanceModel regionInstanceModelFromMongo = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
+            regionInstanceModelFromMongo = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
             regionInstanceId = regionInstanceModelFromMongo.getId();
             Document dataFromMongo = regionInstanceModelFromMongo.getData();
             for (Map.Entry<String, Object> entry : dataFromMongo.entrySet()) {
@@ -210,7 +211,6 @@ public class CalculateServiceImpl implements CalculateService {
         kieSession.insert(instance);
         kieSession.fireAllRules();
         kieSession.dispose();
-        RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
         //将结果存入数据库
         try {
             Document document = new Document();
@@ -220,15 +220,12 @@ public class CalculateServiceImpl implements CalculateService {
 //                System.out.println("value-------------"+value+"-------"+value.getClass());
                 document.put(field.getName(), value);
             }
-            regionInstanceModel.setData(document);
+            regionInstanceModelFromMongo.setData(document);
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         }
         //还需要使用乐观锁处理线程安全问题
-        regionInstanceModel.setId(regionInstanceId);
-        regionInstanceModel.setInstanceId(instanceId);
-        regionInstanceModel.setRegionId(regionId);
-        regionInstanceRepository.save(regionInstanceModel);
+        regionInstanceRepository.save(regionInstanceModelFromMongo);
 
         final Lock lock = new ReentrantLock();
         if(relationOut!=null){
@@ -236,7 +233,7 @@ public class CalculateServiceImpl implements CalculateService {
                 String key = entry.getKey();
                 List<Document> value = (List<Document>) entry.getValue();
                 value.forEach(item->{
-                    Object dataValue = regionInstanceModel.getData().get(key);
+                    Object dataValue = regionInstanceModelFromMongo.getData().get(key);
                     if(dataValue==null){
                         return;
                     }
