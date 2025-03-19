@@ -12,23 +12,17 @@ import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
 import org.drools.decisiontable.InputType;
 import org.drools.decisiontable.SpreadsheetCompiler;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.kie.api.KieServices;
 import org.kie.api.builder.*;
 import org.kie.api.runtime.KieContainer;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.support.BeanDefinitionBuilder;
-import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.*;
 
 @Configuration
@@ -48,8 +42,8 @@ public class DroolsConfig {
     @Transactional
     public KieUtilClass kieUtilCreator() throws Exception {
         //读取EXCEL文件
-//        String filePath = "E:/Java/workspace/points/points/flow-core/src/main/resources/rules/rule.xls";
-        String filePath = "E:/workspace/points/flow-master/flow-core/src/main/resources/rules/rule.xls";
+        String filePath = "E:/Java/workspace/points/points/flow-core/src/main/resources/rules/rule.xls";
+//        String filePath = "E:/workspace/points/flow-master/flow-core/src/main/resources/rules/rule.xls";
 //        String filePath = "E:/workspace/points/flow-core/src/main/resources/rules/rule.xls";
         List<ClassDefinition> classList = parseExcel(filePath);
         JavaStringCompiler compiler = new JavaStringCompiler();
