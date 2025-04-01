@@ -43,8 +43,8 @@ public class DroolsConfig {
     public KieUtilClass kieUtilCreator() throws Exception {
         //读取EXCEL文件
 //        String filePath = "E:/Java/workspace/points/points/flow-core/src/main/resources/rules/rule.xls";
-//        String filePath = "E:/workspace/points/flow-master/flow-core/src/main/resources/rules/rule.xls";
-        String filePath = "E:/workspace/points/flow-core/src/main/resources/rules/rule.xls";
+        String filePath = "E:/workspace/points/flow-master/flow-core/src/main/resources/rules/rule.xls";
+//        String filePath = "E:/workspace/points/flow-core/src/main/resources/rules/rule.xls";
         List<ClassDefinition> classList = parseExcel(filePath);
         JavaStringCompiler compiler = new JavaStringCompiler();
         Map<String, Class<?>> clazzMap = new HashMap<>();

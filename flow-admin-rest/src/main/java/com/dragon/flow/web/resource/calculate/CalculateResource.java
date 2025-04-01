@@ -19,6 +19,7 @@ import org.springframework.data.domain.*;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -77,12 +78,29 @@ public class CalculateResource {
         regionModelList.forEach(item->{
             item.setModelId(id);
         });
+        //若为更新需要先删除旧的
+        if(calculateModel.getId()!=null){
+            regionRepository.deleteAllByModelId(calculateModel.getId());
+        }
         regionRepository.saveAll(regionModelList);
         returnVo.setData(calculateModel);
         returnVo.setCode(ReturnCode.SUCCESS);
         returnVo.setMsg("保存成功");
         return returnVo;
     }
+
+    @Transactional
+    @PostMapping("deleteModel")
+    public ReturnVo deleteModel(@RequestBody CalculateModel calculateModel){
+        String id = calculateModel.getId();
+        modelsRepository.deleteById(id);
+        regionRepository.deleteAllByModelId(id);
+        ReturnVo returnVo = new ReturnVo();
+        returnVo.setCode(ReturnCode.SUCCESS);
+        returnVo.setMsg("删除成功");
+        return returnVo;
+    }
+
 
     @PostMapping("getModels")
     public ReturnVo<List<CalculateModel>> getModels(@RequestBody ParamVo<CalculateModel> param){

@@ -13,4 +13,6 @@ public interface RegionRepository extends MongoRepository<RegionModel,String> {
 
     List<RegionModel> findByModelId(String modelId);
 
+    void deleteAllByModelId(String modelId);
+
 }

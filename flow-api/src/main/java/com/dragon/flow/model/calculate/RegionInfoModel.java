@@ -8,6 +8,9 @@ import java.util.List;
 @Data
 public class RegionInfoModel {
 
+    //是聚合器还是普通表单等
+    private String type;
+
     private String ClassName;
 
     private String description;
