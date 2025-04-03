@@ -25,4 +25,5 @@ public class CalculateParamVo {
     //计算域实例id
     private String regionInstanceId;
 
+
 }

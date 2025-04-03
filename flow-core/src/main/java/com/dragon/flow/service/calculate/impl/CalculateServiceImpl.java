@@ -8,6 +8,8 @@ import com.dragon.flow.model.calculate.RegionModel;
 import com.dragon.flow.model.generate.PropertyDefinition;
 import com.dragon.flow.service.calculate.*;
 import com.dragon.flow.vo.calculate.CalculateParamVo;
+import com.dragon.tools.common.ReturnCode;
+import com.dragon.tools.vo.ReturnVo;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
@@ -77,6 +79,16 @@ public class CalculateServiceImpl implements CalculateService {
             regionInstanceModel.setRelationIn(item.getRelationIn());
             regionInstanceModel.setRelationOut(item.getRelationOut());
             regionInstanceModel.setDescription(item.getInfo().getDescription());
+
+            String type = item.getInfo().getType();
+            //如果该计算域为聚合器的话
+            if(type.equals("Aggregators")){
+                String className = item.getInfo().getClassName();
+//                if(className)
+                //根据不同的className执行不同的方法
+
+            }
+
             try {
                 Class<?> aClass = classMap.get(item.getInfo().getClassName());
                 Object data = aClass.newInstance();
@@ -100,8 +112,9 @@ public class CalculateServiceImpl implements CalculateService {
     }
 
     @Override
-    public Object getCalculateInstance(CalculateParamVo param , boolean isFromWeb) throws Exception {
+    public ReturnVo<Object> getCalculateInstance(CalculateParamVo param , boolean isFromWeb) throws Exception {
         System.out.println("====================================="+param.getTypeName());
+        ReturnVo<Object> returnVo = new ReturnVo<>();
         Object data = param.getParam();
         String fullName = param.getTypeName();
         //使用regionId和modelId套用模板
@@ -114,6 +127,12 @@ public class CalculateServiceImpl implements CalculateService {
         Example<RegionModel> example = Example.of(regionModel);
         //得到了模型中该计算域的信息，包括relationIn和Out
         RegionModel region = regionRepository.findOne(example).get();
+        //区分是自定义计算域还是聚合器等
+        String type = region.getInfo().getType();
+        if(type.equals("Aggregators")){
+
+            return null;
+        }
         List<PropertyDefinition> properties = region.getInfo().getProperties();
         //需要提供信息给对方的邻居节点
         Document relationOut = region.getRelationOut();
@@ -162,7 +181,7 @@ public class CalculateServiceImpl implements CalculateService {
             regionInstanceModel.setRegionId(regionId);
             Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
             regionInstanceModelFromMongo = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
-            regionInstanceId = regionInstanceModelFromMongo.getId();
+//            regionInstanceId = regionInstanceModelFromMongo.getId();
             Document dataFromMongo = regionInstanceModelFromMongo.getData();
             for (Map.Entry<String, Object> entry : dataFromMongo.entrySet()) {
                 String fieldName = entry.getKey();
@@ -177,6 +196,7 @@ public class CalculateServiceImpl implements CalculateService {
                     this.callSetterMethod(instance,fieldName,cast);
                     System.out.println("写入值为cast："+cast);
                 }else{
+                    //其他情况下，该实例的本属性值保持不变
                     this.callSetterMethod(instance,fieldName,fieldValue);
                     System.out.println("写入值为fieldValue："+fieldValue);
                 }
@@ -198,14 +218,16 @@ public class CalculateServiceImpl implements CalculateService {
                 System.out.println(fieldName + ": " + fieldValue + ":::" +cast);
             }
         }
-        ObjectNode objectNode1 = objectMapper.valueToTree(instance);
-        objectNode1.fields().forEachRemaining(entry -> {
-            String fieldName = entry.getKey();
-            Object fieldValue = entry.getValue();
-            System.out.println(fieldName + ": :::::" + fieldValue+ ": :::::" + fieldValue.getClass());
-        });
+//        ObjectNode objectNode1 = objectMapper.valueToTree(instance);
+//        objectNode1.fields().forEachRemaining(entry -> {
+//            String fieldName = entry.getKey();
+//            Object fieldValue = entry.getValue();
+//            System.out.println(fieldName + ": :::::" + fieldValue+ ": :::::" + fieldValue.getClass());
+//        });
         if(flag.get()==false){
-            return null;
+            returnVo.setMsg("暂时不具备计算条件或者数据未发生变化，数据已经保存");
+            returnVo.setCode(ReturnCode.WARN);
+            return returnVo;
         }
         //插入带值的实例
         kieSession.insert(instance);
@@ -264,7 +286,10 @@ public class CalculateServiceImpl implements CalculateService {
                 });
             }
         }
-        return instance;
+        returnVo.setMsg("计算成功");
+        returnVo.setData(instance);
+        returnVo.setCode(ReturnCode.SUCCESS);
+        return returnVo;
     }
 
 
