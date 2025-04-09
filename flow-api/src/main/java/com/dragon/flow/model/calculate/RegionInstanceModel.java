@@ -18,6 +18,7 @@ public class RegionInstanceModel extends BaseModel {
 
     private String description;
 
+    //这个regionId是region拖入后生成的独一无二的Id，而不是每一个regionModel的Id
     private String regionId;
 
     private String ClassName;

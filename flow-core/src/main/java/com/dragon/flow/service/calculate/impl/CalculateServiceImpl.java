@@ -84,25 +84,41 @@ public class CalculateServiceImpl implements CalculateService {
             //如果该计算域为聚合器的话
             if(type.equals("Aggregators")){
                 String className = item.getInfo().getClassName();
-//                if(className)
-                //根据不同的className执行不同的方法
-
-            }
-
-            try {
-                Class<?> aClass = classMap.get(item.getInfo().getClassName());
-                Object data = aClass.newInstance();
-                Document document = new Document();
-                for (Field field : aClass.getDeclaredFields()) {
-                    field.setAccessible(true); // 强制访问私有字段
-                    Object value = field.get(data);
-                    document.put(field.getName(), value);
+                if(className.equals("com.dragon.flow.model.aggregators.Average")){
+                    Document average = new Document();
+                    Map<String, org.springframework.data.mongodb.core.mapping.Document> stringDocumentMap = new HashMap<>();
+                    for (Map.Entry<String, Object> entry : item.getRelationIn().entrySet()) {
+                        String key = entry.getKey();
+                        List<Document> value = (List<Document>) entry.getValue();
+                        if(key.equals("list")){
+                            value.forEach(relation->{
+                                String sourceObjId = (String) relation.get("sourceObjId");
+                                stringDocumentMap.put(sourceObjId,null);
+                            });
+                        }
+                    }
+                    average.put("dataMap",stringDocumentMap);
+                    average.put("datatType","Double");
+                    average.put("result",null);
+                    regionInstanceModel.setData(average);
                 }
-                regionInstanceModel.setData(document);
-            } catch (InstantiationException e) {
-                e.printStackTrace();
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
+                //根据不同的className执行不同的方法
+            }else{
+                try {
+                    Class<?> aClass = classMap.get(item.getInfo().getClassName());
+                    Object data = aClass.newInstance();
+                    Document document = new Document();
+                    for (Field field : aClass.getDeclaredFields()) {
+                        field.setAccessible(true); // 强制访问私有字段
+                        Object value = field.get(data);
+                        document.put(field.getName(), value);
+                    }
+                    regionInstanceModel.setData(document);
+                } catch (InstantiationException e) {
+                    e.printStackTrace();
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                }
             }
             regionInstanceModels.add(regionInstanceModel);
         });
@@ -110,6 +126,21 @@ public class CalculateServiceImpl implements CalculateService {
         save.setData(regionInstanceModelSave);
         return save;
     }
+
+    private void getAggregatorResult(CalculateParamVo paramVo,Document dataFromMongo){
+        String typeName = paramVo.getTypeName();
+        if(typeName.equals("com.dragon.flow.model.aggregators.Average")){
+            for (Map.Entry<String, Object> entry : dataFromMongo.entrySet()) {
+                String fieldName = entry.getKey();
+                Document fieldValue = (Document) entry.getValue();
+                if(fieldName.equals("dataMap")){
+                    String sourceId = paramVo.getSourceId();
+                    Object o = fieldValue.get(sourceId);
+                }
+            }
+        }
+    }
+
 
     @Override
     public ReturnVo<Object> getCalculateInstance(CalculateParamVo param , boolean isFromWeb) throws Exception {
@@ -129,10 +160,6 @@ public class CalculateServiceImpl implements CalculateService {
         RegionModel region = regionRepository.findOne(example).get();
         //区分是自定义计算域还是聚合器等
         String type = region.getInfo().getType();
-        if(type.equals("Aggregators")){
-
-            return null;
-        }
         List<PropertyDefinition> properties = region.getInfo().getProperties();
         //需要提供信息给对方的邻居节点
         Document relationOut = region.getRelationOut();
@@ -183,6 +210,10 @@ public class CalculateServiceImpl implements CalculateService {
             regionInstanceModelFromMongo = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
 //            regionInstanceId = regionInstanceModelFromMongo.getId();
             Document dataFromMongo = regionInstanceModelFromMongo.getData();
+            if(type.equals("Aggregators")){
+                getAggregatorResult(param,dataFromMongo);
+                return null;
+            }
             for (Map.Entry<String, Object> entry : dataFromMongo.entrySet()) {
                 String fieldName = entry.getKey();
                 Object fieldValue = entry.getValue();
@@ -264,6 +295,7 @@ public class CalculateServiceImpl implements CalculateService {
                     String targetPropertyName = (String) item.get("targetPropertyName");
                     CalculateParamVo calculateParamVo = new CalculateParamVo();
                     calculateParamVo.setRegionId(targetObjId);
+                    calculateParamVo.setSourceId(regionId);
                     calculateParamVo.setInstanceId(instanceId);
                     calculateParamVo.setModelId(modelId);
                     Document document = new Document();

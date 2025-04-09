@@ -13,6 +13,9 @@ public class CalculateParamVo {
     //模板中的计算域Id
     private String regionId;
 
+    //来源计算域Id
+    private String sourceId;
+
     //模板类名
     private String typeName;
 

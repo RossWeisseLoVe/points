@@ -1,14 +1,17 @@
 package com.dragon.flow.model.aggregators;
 
 import lombok.Data;
-import org.springframework.data.mongodb.core.mapping.Document;
+import org.bson.Document;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 public class Average {
 
-    private List<Document> list;
+    private Map<String, Document> dataMap;
+
+    private String DataType;
 
     private  Document average;
 
