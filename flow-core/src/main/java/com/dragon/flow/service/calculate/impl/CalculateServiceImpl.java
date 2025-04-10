@@ -1,6 +1,7 @@
 package com.dragon.flow.service.calculate.impl;
 
 import com.dragon.flow.config.modeler.KieUtilClass;
+import com.dragon.flow.model.aggregators.AggregatorsType1;
 import com.dragon.flow.model.calculate.CalculateModel;
 import com.dragon.flow.model.calculate.InstanceModel;
 import com.dragon.flow.model.calculate.RegionInstanceModel;
@@ -86,7 +87,8 @@ public class CalculateServiceImpl implements CalculateService {
                 String className = item.getInfo().getClassName();
                 if(className.equals("com.dragon.flow.model.aggregators.Average")){
                     Document average = new Document();
-                    Map<String, org.springframework.data.mongodb.core.mapping.Document> stringDocumentMap = new HashMap<>();
+                    AggregatorsType1 aggregatorsType1 = new AggregatorsType1();
+                    Map<String, Document> stringDocumentMap = new HashMap<>();
                     for (Map.Entry<String, Object> entry : item.getRelationIn().entrySet()) {
                         String key = entry.getKey();
                         List<Document> value = (List<Document>) entry.getValue();
@@ -97,10 +99,11 @@ public class CalculateServiceImpl implements CalculateService {
                             });
                         }
                     }
-                    average.put("dataMap",stringDocumentMap);
-                    average.put("datatType","Double");
-                    average.put("result",null);
-                    regionInstanceModel.setData(average);
+                    aggregatorsType1.setDataMap(stringDocumentMap);
+                    aggregatorsType1.setDataType("Double");
+                    aggregatorsType1.setResult(null);
+                    Document document = aggregatorsType1.toDocument();
+                    regionInstanceModel.setData(document);
                 }
                 //根据不同的className执行不同的方法
             }else{
@@ -130,13 +133,13 @@ public class CalculateServiceImpl implements CalculateService {
     private void getAggregatorResult(CalculateParamVo paramVo,Document dataFromMongo){
         String typeName = paramVo.getTypeName();
         if(typeName.equals("com.dragon.flow.model.aggregators.Average")){
-            for (Map.Entry<String, Object> entry : dataFromMongo.entrySet()) {
-                String fieldName = entry.getKey();
-                Document fieldValue = (Document) entry.getValue();
-                if(fieldName.equals("dataMap")){
-                    String sourceId = paramVo.getSourceId();
-                    Object o = fieldValue.get(sourceId);
-                }
+            AggregatorsType1 aggregatorsType1 = AggregatorsType1.fromDocument(dataFromMongo);
+            //获取到数据集合，查询是否全部都有值
+            Map<String, Document> dataMap = aggregatorsType1.getDataMap();
+            Document param = (Document) paramVo.getParam();
+            Double value = (Double) param.get("list");
+            if(aggregatorsType1.getDataType().equals("Double")){
+                Document document = dataMap.get(paramVo.getSourceId());
             }
         }
     }
