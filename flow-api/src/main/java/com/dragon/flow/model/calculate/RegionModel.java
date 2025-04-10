@@ -15,6 +15,7 @@ public class RegionModel {
 
     private RegionInfoModel info;
 
+
     private org.bson.Document relationOut;
 
     private org.bson.Document relationIn;

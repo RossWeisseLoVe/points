@@ -14,12 +14,10 @@ import com.dragon.tools.vo.ReturnVo;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.beanutils.BeanUtils;
 import org.bson.Document;
-import org.kie.api.builder.KieFileSystem;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +25,6 @@ import org.springframework.data.domain.Example;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.print.Doc;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
@@ -88,7 +85,7 @@ public class CalculateServiceImpl implements CalculateService {
                 if(className.equals("com.dragon.flow.model.aggregators.Average")){
                     Document average = new Document();
                     AggregatorsType1 aggregatorsType1 = new AggregatorsType1();
-                    Map<String, Document> stringDocumentMap = new HashMap<>();
+                    Document stringDocumentMap = new Document();
                     for (Map.Entry<String, Object> entry : item.getRelationIn().entrySet()) {
                         String key = entry.getKey();
                         List<Document> value = (List<Document>) entry.getValue();
@@ -130,24 +127,36 @@ public class CalculateServiceImpl implements CalculateService {
         return save;
     }
 
-    private void getAggregatorResult(CalculateParamVo paramVo,Document dataFromMongo){
-        String typeName = paramVo.getTypeName();
+    private void getAggregatorResult(CalculateParamVo paramVo, RegionInstanceModel regionInstanceModel){
+        Document dataFromMongo = regionInstanceModel.getData();
+        String typeName = regionInstanceModel.getClassName();
         if(typeName.equals("com.dragon.flow.model.aggregators.Average")){
             AggregatorsType1 aggregatorsType1 = AggregatorsType1.fromDocument(dataFromMongo);
             //获取到数据集合，查询是否全部都有值
-            Map<String, Document> dataMap = aggregatorsType1.getDataMap();
+            Document dataMap = aggregatorsType1.getDataMap();
             Document param = (Document) paramVo.getParam();
-            Double value = (Double) param.get("list");
-            if(aggregatorsType1.getDataType().equals("Double")){
-                Document document = dataMap.get(paramVo.getSourceId());
+            System.out.println("========================================"+param.get("list"));
+            dataMap.put(paramVo.getSourceId(), param.get("list"));
+            AtomicBoolean flag = new AtomicBoolean(true);
+            dataMap.forEach((key,value)->{
+                if(value==null){
+                    flag.set(false);
+                }
+            });
+            if(flag.get()==true){
+                aggregatorsType1.setResultAverage();
             }
+            Document document = aggregatorsType1.toDocument();
+            regionInstanceModel.setData(document);
+            regionInstanceRepository.save(regionInstanceModel);
+
         }
     }
 
 
     @Override
     public ReturnVo<Object> getCalculateInstance(CalculateParamVo param , boolean isFromWeb) throws Exception {
-        System.out.println("====================================="+param.getTypeName());
+//        System.out.println("====================================="+param.getTypeName());
         ReturnVo<Object> returnVo = new ReturnVo<>();
         Object data = param.getParam();
         String fullName = param.getTypeName();
@@ -155,12 +164,8 @@ public class CalculateServiceImpl implements CalculateService {
         String regionId = param.getRegionId();
         String modelId = param.getModelId();
         String instanceId = param.getInstanceId();
-        RegionModel regionModel = new RegionModel();
-        regionModel.setModelId(modelId);
-        regionModel.setId(regionId);
-        Example<RegionModel> example = Example.of(regionModel);
         //得到了模型中该计算域的信息，包括relationIn和Out
-        RegionModel region = regionRepository.findOne(example).get();
+        RegionModel region = regionRepository.findById(regionId).get();
         //区分是自定义计算域还是聚合器等
         String type = region.getInfo().getType();
         List<PropertyDefinition> properties = region.getInfo().getProperties();
@@ -197,7 +202,7 @@ public class CalculateServiceImpl implements CalculateService {
                         //如果数据发生改变即可计算
                         flag.set(true);
                     }
-                    System.out.println(fieldName + ": " + fieldValue + ":::" +cast);
+//                    System.out.println(fieldName + ": " + fieldValue + ":::" +cast);
                     this.callSetterMethod(instance,fieldName,fieldValue);
                 } catch (NoSuchFieldException | JsonProcessingException e) {
                     e.printStackTrace();
@@ -213,8 +218,9 @@ public class CalculateServiceImpl implements CalculateService {
             regionInstanceModelFromMongo = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
 //            regionInstanceId = regionInstanceModelFromMongo.getId();
             Document dataFromMongo = regionInstanceModelFromMongo.getData();
+            System.out.println("type==================="+type);
             if(type.equals("Aggregators")){
-                getAggregatorResult(param,dataFromMongo);
+                this.getAggregatorResult(param,regionInstanceModelFromMongo);
                 return null;
             }
             for (Map.Entry<String, Object> entry : dataFromMongo.entrySet()) {
@@ -228,13 +234,13 @@ public class CalculateServiceImpl implements CalculateService {
                 if(fieldValue==null&&cast!=null){
                     //传入的值如果非空就赋给该属性
                     this.callSetterMethod(instance,fieldName,cast);
-                    System.out.println("写入值为cast："+cast);
+//                    System.out.println("写入值为cast："+cast);
                 }else{
                     //其他情况下，该实例的本属性值保持不变
                     this.callSetterMethod(instance,fieldName,fieldValue);
-                    System.out.println("写入值为fieldValue："+fieldValue);
+//                    System.out.println("写入值为fieldValue："+fieldValue);
                 }
-                System.out.println(fieldName + ": " + fieldValue + ":::" +cast);
+//                System.out.println(fieldName + ": " + fieldValue + ":::" +cast);
             }
             Document autoData = (Document) param.getParam();
             //将传入的值赋给instance
@@ -247,9 +253,9 @@ public class CalculateServiceImpl implements CalculateService {
                     //传入的值如果非空就赋给该属性
                     this.callSetterMethod(instance,fieldName,fieldValue);
                     flag.set(true);
-                    System.out.println("传入的值");
+//                    System.out.println("传入的值");
                 }
-                System.out.println(fieldName + ": " + fieldValue + ":::" +cast);
+//                System.out.println(fieldName + ": " + fieldValue + ":::" +cast);
             }
         }
 //        ObjectNode objectNode1 = objectMapper.valueToTree(instance);
@@ -303,7 +309,12 @@ public class CalculateServiceImpl implements CalculateService {
                     calculateParamVo.setModelId(modelId);
                     Document document = new Document();
                     document.put(targetPropertyName,dataValue);
-                    String className = regionRepository.findById(targetObjId).get().getInfo().getClassName();
+                    RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
+                    regionInstanceModel.setInstanceId(instanceId);
+                    regionInstanceModel.setRegionId(regionId);
+                    Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
+                    RegionInstanceModel regionInstanceModel1 = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
+                    String className = regionInstanceModel1.getClassName();
                     calculateParamVo.setParam(document);
                     calculateParamVo.setTypeName(className);
                     //异步调用
