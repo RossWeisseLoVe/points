@@ -25,6 +25,7 @@ import org.springframework.data.domain.Example;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.print.Doc;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
@@ -149,7 +150,10 @@ public class CalculateServiceImpl implements CalculateService {
             Document document = aggregatorsType1.toDocument();
             regionInstanceModel.setData(document);
             regionInstanceRepository.save(regionInstanceModel);
-
+            Document relationOut = regionInstanceModel.getRelationOut();
+            if(flag.get()==true&&relationOut!=null){
+                this.sendNewTask(relationOut,regionInstanceModel,paramVo);
+            }
         }
     }
 
@@ -175,9 +179,7 @@ public class CalculateServiceImpl implements CalculateService {
         Map<String, Class<?>> clazzMap = kieUtilClass.getClassMap();
         KieContainer kieContainer = kieUtilClass.getKieContainer();
         KieSession kieSession = kieContainer.getKieBase().newKieSession();
-        //创建实例
-        Object instance = clazzMap.get(fullName).newInstance();
-        Class<?> regionClass = clazzMap.get(fullName);
+
         //从Object接收的param中取出付给新建的实例
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
@@ -186,8 +188,14 @@ public class CalculateServiceImpl implements CalculateService {
         AtomicBoolean flag = new AtomicBoolean(false);
         String regionInstanceId = param.getRegionInstanceId();
         RegionInstanceModel regionInstanceModelFromMongo;
+        //创建实例
+        Object instance;
+        Class<?> regionClass;
         if(isFromWeb){
             //从客户端传来的请求
+            //创建实例
+            instance = clazzMap.get(fullName).newInstance();
+            regionClass = clazzMap.get(fullName);
             regionInstanceModelFromMongo = regionInstanceRepository.findById(regionInstanceId).get();
             Document dataFromMongo = regionInstanceModelFromMongo.getData();
             objectNode.fields().forEachRemaining(entry -> {
@@ -223,6 +231,8 @@ public class CalculateServiceImpl implements CalculateService {
                 this.getAggregatorResult(param,regionInstanceModelFromMongo);
                 return null;
             }
+            instance = clazzMap.get(fullName).newInstance();
+            regionClass = clazzMap.get(fullName);
             for (Map.Entry<String, Object> entry : dataFromMongo.entrySet()) {
                 String fieldName = entry.getKey();
                 Object fieldValue = entry.getValue();
@@ -311,7 +321,7 @@ public class CalculateServiceImpl implements CalculateService {
                     document.put(targetPropertyName,dataValue);
                     RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
                     regionInstanceModel.setInstanceId(instanceId);
-                    regionInstanceModel.setRegionId(regionId);
+                    regionInstanceModel.setRegionId(targetObjId);
                     Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
                     RegionInstanceModel regionInstanceModel1 = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
                     String className = regionInstanceModel1.getClassName();
@@ -336,6 +346,55 @@ public class CalculateServiceImpl implements CalculateService {
         returnVo.setData(instance);
         returnVo.setCode(ReturnCode.SUCCESS);
         return returnVo;
+    }
+
+    private void sendNewTask(Document relationOut,RegionInstanceModel regionInstanceModelFromMongo,CalculateParamVo paramVo){
+        final Lock lock = new ReentrantLock();
+        String regionId = paramVo.getRegionId();
+        String modelId = paramVo.getModelId();
+        String instanceId = paramVo.getInstanceId();
+        for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
+            String key = entry.getKey();
+            List<Document> value = (List<Document>) entry.getValue();
+            value.forEach(item->{
+                Document dataFromMongo = regionInstanceModelFromMongo.getData();
+                AggregatorsType1 aggregatorsType1 = AggregatorsType1.fromDocument(dataFromMongo);
+                Object dataValue = aggregatorsType1.getResult();
+                if(dataValue==null){
+                    return;
+                }
+                System.out.println("Key: " + key + ", Value: " + item.toString());
+                String targetObjId = (String) item.get("targetObjId");
+                String targetPropertyName = (String) item.get("targetPropertyName");
+                CalculateParamVo calculateParamVo = new CalculateParamVo();
+                calculateParamVo.setRegionId(targetObjId);
+                calculateParamVo.setSourceId(regionId);
+                calculateParamVo.setInstanceId(instanceId);
+                calculateParamVo.setModelId(modelId);
+                Document document = new Document();
+                document.put(targetPropertyName,dataValue);
+                RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
+                regionInstanceModel.setInstanceId(instanceId);
+                regionInstanceModel.setRegionId(targetObjId);
+                Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
+                RegionInstanceModel regionInstanceModel1 = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
+                String className = regionInstanceModel1.getClassName();
+                calculateParamVo.setParam(document);
+                calculateParamVo.setTypeName(className);
+                //异步调用
+                CompletableFuture.runAsync(()->{
+                    //此处会有线程安全问题，需要解决
+                    lock.lock();
+                    try {
+                        this.getCalculateInstance(calculateParamVo,false);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }finally {
+                        lock.unlock();
+                    }
+                });
+            });
+        }
     }
 
 
