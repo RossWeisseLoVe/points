@@ -78,6 +78,7 @@ public class CalculateServiceImpl implements CalculateService {
             regionInstanceModel.setRelationIn(item.getRelationIn());
             regionInstanceModel.setRelationOut(item.getRelationOut());
             regionInstanceModel.setDescription(item.getInfo().getDescription());
+            regionInstanceModel.setType(item.getInfo().getType());
 
             String type = item.getInfo().getType();
             //如果该计算域为聚合器的话
@@ -160,7 +161,6 @@ public class CalculateServiceImpl implements CalculateService {
 
     @Override
     public ReturnVo<Object> getCalculateInstance(CalculateParamVo param , boolean isFromWeb) throws Exception {
-//        System.out.println("====================================="+param.getTypeName());
         ReturnVo<Object> returnVo = new ReturnVo<>();
         Object data = param.getParam();
         String fullName = param.getTypeName();
@@ -172,14 +172,12 @@ public class CalculateServiceImpl implements CalculateService {
         RegionModel region = regionRepository.findById(regionId).get();
         //区分是自定义计算域还是聚合器等
         String type = region.getInfo().getType();
-        List<PropertyDefinition> properties = region.getInfo().getProperties();
         //需要提供信息给对方的邻居节点
         Document relationOut = region.getRelationOut();
         //动态类map
         Map<String, Class<?>> clazzMap = kieUtilClass.getClassMap();
         KieContainer kieContainer = kieUtilClass.getKieContainer();
         KieSession kieSession = kieContainer.getKieBase().newKieSession();
-
         //从Object接收的param中取出付给新建的实例
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
@@ -216,7 +214,6 @@ public class CalculateServiceImpl implements CalculateService {
                     e.printStackTrace();
                 }
             });
-
         }else{
             //程序自己异步调用
             RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
@@ -224,13 +221,14 @@ public class CalculateServiceImpl implements CalculateService {
             regionInstanceModel.setRegionId(regionId);
             Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
             regionInstanceModelFromMongo = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
-//            regionInstanceId = regionInstanceModelFromMongo.getId();
             Document dataFromMongo = regionInstanceModelFromMongo.getData();
             System.out.println("type==================="+type);
+            //如果当前计算域为聚合器，则进入聚合器的计算流程
             if(type.equals("Aggregators")){
                 this.getAggregatorResult(param,regionInstanceModelFromMongo);
                 return null;
             }
+            //由于类型map中不存在各聚合器的类型，为了防止报错，实例的创建放在这里
             instance = clazzMap.get(fullName).newInstance();
             regionClass = clazzMap.get(fullName);
             for (Map.Entry<String, Object> entry : dataFromMongo.entrySet()) {
@@ -268,12 +266,6 @@ public class CalculateServiceImpl implements CalculateService {
 //                System.out.println(fieldName + ": " + fieldValue + ":::" +cast);
             }
         }
-//        ObjectNode objectNode1 = objectMapper.valueToTree(instance);
-//        objectNode1.fields().forEachRemaining(entry -> {
-//            String fieldName = entry.getKey();
-//            Object fieldValue = entry.getValue();
-//            System.out.println(fieldName + ": :::::" + fieldValue+ ": :::::" + fieldValue.getClass());
-//        });
         if(flag.get()==false){
             returnVo.setMsg("暂时不具备计算条件或者数据未发生变化，数据已经保存");
             returnVo.setCode(ReturnCode.WARN);
@@ -298,49 +290,8 @@ public class CalculateServiceImpl implements CalculateService {
         }
         //还需要使用乐观锁处理线程安全问题
         regionInstanceRepository.save(regionInstanceModelFromMongo);
-
-        final Lock lock = new ReentrantLock();
         if(relationOut!=null){
-            for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
-                String key = entry.getKey();
-                List<Document> value = (List<Document>) entry.getValue();
-                value.forEach(item->{
-                    Object dataValue = regionInstanceModelFromMongo.getData().get(key);
-                    if(dataValue==null){
-                        return;
-                    }
-                    System.out.println("Key: " + key + ", Value: " + item.toString());
-                    String targetObjId = (String) item.get("targetObjId");
-                    String targetPropertyName = (String) item.get("targetPropertyName");
-                    CalculateParamVo calculateParamVo = new CalculateParamVo();
-                    calculateParamVo.setRegionId(targetObjId);
-                    calculateParamVo.setSourceId(regionId);
-                    calculateParamVo.setInstanceId(instanceId);
-                    calculateParamVo.setModelId(modelId);
-                    Document document = new Document();
-                    document.put(targetPropertyName,dataValue);
-                    RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
-                    regionInstanceModel.setInstanceId(instanceId);
-                    regionInstanceModel.setRegionId(targetObjId);
-                    Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
-                    RegionInstanceModel regionInstanceModel1 = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
-                    String className = regionInstanceModel1.getClassName();
-                    calculateParamVo.setParam(document);
-                    calculateParamVo.setTypeName(className);
-                    //异步调用
-                    CompletableFuture.runAsync(()->{
-                        //此处会有线程安全问题，需要解决
-                        lock.lock();
-                        try {
-                            this.getCalculateInstance(calculateParamVo,false);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }finally {
-                            lock.unlock();
-                        }
-                    });
-                });
-            }
+            this.sendNewTask(relationOut,regionInstanceModelFromMongo,param);
         }
         returnVo.setMsg("计算成功");
         returnVo.setData(instance);
@@ -357,9 +308,15 @@ public class CalculateServiceImpl implements CalculateService {
             String key = entry.getKey();
             List<Document> value = (List<Document>) entry.getValue();
             value.forEach(item->{
-                Document dataFromMongo = regionInstanceModelFromMongo.getData();
-                AggregatorsType1 aggregatorsType1 = AggregatorsType1.fromDocument(dataFromMongo);
-                Object dataValue = aggregatorsType1.getResult();
+                String regionType = regionInstanceModelFromMongo.getType();
+                Object dataValue = null;
+                if(regionType.equals("Aggregators")){
+                    Document dataFromMongo = regionInstanceModelFromMongo.getData();
+                    AggregatorsType1 aggregatorsType1 = AggregatorsType1.fromDocument(dataFromMongo);
+                    dataValue = aggregatorsType1.getResult();
+                }else{
+                    dataValue = regionInstanceModelFromMongo.getData().get(key);
+                }
                 if(dataValue==null){
                     return;
                 }
