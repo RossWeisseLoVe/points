@@ -122,6 +122,16 @@ public class CalculateResource {
         return listReturnVo;
     }
 
+    @GetMapping("getAllModels")
+    public ReturnVo<List<CalculateModel>> getAllModels(){
+        List<CalculateModel> all = modelsRepository.findAll();
+        ReturnVo<List<CalculateModel>> listReturnVo = new ReturnVo<>();
+        listReturnVo.setCode(ReturnCode.SUCCESS);
+        listReturnVo.setData(all);
+        listReturnVo.setMsg("查询成功");
+        return listReturnVo;
+    }
+
     @GetMapping("getModelById/{id}")
     public ReturnVo<CalculateModel> getModelById(@PathVariable String id){
         CalculateModel model = calculateService.getModelById(id);
