@@ -1,6 +1,7 @@
 package com.dragon.flow.model.generate;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.dragon.tools.common.BaseModel;
@@ -41,5 +42,9 @@ public class PropertyDefinition extends BaseModel implements Serializable {
     private String placeholder;
 
     private String options;
+
+    //用于在后期设置当前属性是否对外提供，仅在MongoDB中存储 1为向外提供 0为不向外提供
+    @TableField(exist = false)
+    private Integer isForeign;
 
 }

@@ -1,8 +1,11 @@
 package com.dragon.flow.model.calculate;
 
+import com.dragon.flow.model.generate.PropertyDefinition;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+
+import java.util.List;
 
 @Data
 @Document(collection = "region")
@@ -15,10 +18,10 @@ public class RegionModel {
 
     private RegionInfoModel info;
 
-
     private org.bson.Document relationOut;
 
     private org.bson.Document relationIn;
 
     private String type;
+
 }
