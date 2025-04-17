@@ -1,6 +1,6 @@
 package com.dragon.flow.model.calculate;
 
-import com.dragon.flow.model.generate.PropertyDefinitionForeign;
+import com.dragon.flow.model.generate.PropertyDefinition;
 import com.dragon.tools.common.BaseModel;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
@@ -27,7 +27,7 @@ public class CalculateModel extends BaseModel {
     private String description;
 
     //当前模型暴露给其他模型的属性
-    private List<PropertyDefinitionForeign> foreignProperties;
+    private List<PropertyDefinition> properties;
 
 
     public CalculateModel(){

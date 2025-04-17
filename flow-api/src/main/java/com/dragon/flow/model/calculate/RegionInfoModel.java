@@ -17,4 +17,7 @@ public class RegionInfoModel {
 
     private List<PropertyDefinition> properties;
 
+    //如果type为otherModel
+    private String sourceModelId;
+
 }

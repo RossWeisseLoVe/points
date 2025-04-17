@@ -47,4 +47,10 @@ public class PropertyDefinition extends BaseModel implements Serializable {
     @TableField(exist = false)
     private Integer isForeign;
 
+    //用于记录用的是哪个region的
+    private String regionId;
+
+    //用于记录所属region的类型（box、agg\other）
+    private String regionType;
+
 }
