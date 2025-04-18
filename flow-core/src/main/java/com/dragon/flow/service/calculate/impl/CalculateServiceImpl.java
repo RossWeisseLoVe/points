@@ -71,71 +71,75 @@ public class CalculateServiceImpl implements CalculateService {
         Map<String, Class<?>> classMap = kieUtilClass.getClassMap();
         List<RegionInstanceModel> regionInstanceModels = new ArrayList<>();
         template.forEach(item->{
+            RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
+            regionInstanceModel.setInstanceId(id);
+            regionInstanceModel.setRegionId(item.getId());
+            regionInstanceModel.setClassName(item.getInfo().getClassName());
+            regionInstanceModel.setRelationIn(item.getRelationIn());
+            regionInstanceModel.setRelationOut(item.getRelationOut());
+            regionInstanceModel.setDescription(item.getInfo().getDescription());
+            regionInstanceModel.setType(item.getInfo().getType());
             if(item.getInfo().getType().equals("othermodel")){
                 //如果当前region是嵌套计算域，则递归生成实例
+                String uuid = UUID.randomUUID().toString();
                 InstanceModel nestingRegionInstanceModel = new InstanceModel();
                 nestingRegionInstanceModel.setModelId(item.getInfo().getSourceModelId());
                 nestingRegionInstanceModel.setName(item.getInfo().getClassName());
                 nestingRegionInstanceModel.setDescription(instanceModel.getName()+"的子计算域");
+                //以下两句代码的意义是：将regionInstance表中的嵌套模型实例与其每个计算域实例关联起来
+                nestingRegionInstanceModel.setId(uuid);
+                regionInstanceModel.setId(uuid);
                 try {
                     newInstance(nestingRegionInstanceModel);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-            }else{
-                RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
-                regionInstanceModel.setInstanceId(id);
-                regionInstanceModel.setRegionId(item.getId());
-                regionInstanceModel.setClassName(item.getInfo().getClassName());
-                regionInstanceModel.setRelationIn(item.getRelationIn());
-                regionInstanceModel.setRelationOut(item.getRelationOut());
-                regionInstanceModel.setDescription(item.getInfo().getDescription());
-                regionInstanceModel.setType(item.getInfo().getType());
-
-                String type = item.getInfo().getType();
-                //如果该计算域为聚合器的话
-                if(type.equals("Aggregators")){
-                    String className = item.getInfo().getClassName();
-                    if(className.equals("com.dragon.flow.model.aggregators.Average")){
-                        Document average = new Document();
-                        AggregatorsType1 aggregatorsType1 = new AggregatorsType1();
-                        Document stringDocumentMap = new Document();
-                        for (Map.Entry<String, Object> entry : item.getRelationIn().entrySet()) {
-                            String key = entry.getKey();
-                            List<Document> value = (List<Document>) entry.getValue();
-                            if(key.equals("list")){
-                                value.forEach(relation->{
-                                    String sourceObjId = (String) relation.get("sourceObjId");
-                                    stringDocumentMap.put(sourceObjId,null);
-                                });
-                            }
-                        }
-                        aggregatorsType1.setDataMap(stringDocumentMap);
-                        aggregatorsType1.setDataType("Double");
-                        aggregatorsType1.setResult(null);
-                        Document document = aggregatorsType1.toDocument();
-                        regionInstanceModel.setData(document);
-                    }
-                    //根据不同的className执行不同的方法
-                }else{
-                    try {
-                        Class<?> aClass = classMap.get(item.getInfo().getClassName());
-                        Object data = aClass.newInstance();
-                        Document document = new Document();
-                        for (Field field : aClass.getDeclaredFields()) {
-                            field.setAccessible(true); // 强制访问私有字段
-                            Object value = field.get(data);
-                            document.put(field.getName(), value);
-                        }
-                        regionInstanceModel.setData(document);
-                    } catch (InstantiationException e) {
-                        e.printStackTrace();
-                    } catch (IllegalAccessException e) {
-                        e.printStackTrace();
-                    }
-                }
-                regionInstanceModels.add(regionInstanceModel);
             }
+            String type = item.getInfo().getType();
+            //如果该计算域为聚合器的话
+            if(type.equals("Aggregators")){
+                String className = item.getInfo().getClassName();
+                if(className.equals("com.dragon.flow.model.aggregators.Average")){
+                    Document average = new Document();
+                    AggregatorsType1 aggregatorsType1 = new AggregatorsType1();
+                    Document stringDocumentMap = new Document();
+                    for (Map.Entry<String, Object> entry : item.getRelationIn().entrySet()) {
+                        String key = entry.getKey();
+                        List<Document> value = (List<Document>) entry.getValue();
+                        if(key.equals("list")){
+                            value.forEach(relation->{
+                                String sourceObjId = (String) relation.get("sourceObjId");
+                                stringDocumentMap.put(sourceObjId,null);
+                            });
+                        }
+                    }
+                    aggregatorsType1.setDataMap(stringDocumentMap);
+                    aggregatorsType1.setDataType("Double");
+                    aggregatorsType1.setResult(null);
+                    Document document = aggregatorsType1.toDocument();
+                    regionInstanceModel.setData(document);
+                }
+                //根据不同的className执行不同的方法
+            }else if(type.equals("othermodel")){
+
+            }else{
+                try {
+                    Class<?> aClass = classMap.get(item.getInfo().getClassName());
+                    Object data = aClass.newInstance();
+                    Document document = new Document();
+                    for (Field field : aClass.getDeclaredFields()) {
+                        field.setAccessible(true); // 强制访问私有字段
+                        Object value = field.get(data);
+                        document.put(field.getName(), value);
+                    }
+                    regionInstanceModel.setData(document);
+                } catch (InstantiationException e) {
+                    e.printStackTrace();
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+            }
+            regionInstanceModels.add(regionInstanceModel);
         });
         List<RegionInstanceModel> regionInstanceModelSave = regionInstanceRepository.saveAll(regionInstanceModels);
         save.setData(regionInstanceModelSave);
