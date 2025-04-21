@@ -183,7 +183,6 @@ public class CalculateServiceImpl implements CalculateService {
         String fullName = param.getTypeName();
         //使用regionId和modelId套用模板
         String regionId = param.getRegionId();
-        String modelId = param.getModelId();
         String instanceId = param.getInstanceId();
         //得到了模型中该计算域的信息，包括relationIn和Out
         RegionModel region = regionRepository.findById(regionId).get();
@@ -307,9 +306,7 @@ public class CalculateServiceImpl implements CalculateService {
         }
         //还需要使用乐观锁处理线程安全问题
         regionInstanceRepository.save(regionInstanceModelFromMongo);
-        if(relationOut!=null){
-            this.sendNewTask(relationOut,regionInstanceModelFromMongo,param);
-        }
+        this.sendNewTask(relationOut,regionInstanceModelFromMongo,param);
         returnVo.setMsg("计算成功");
         returnVo.setData(instance);
         returnVo.setCode(ReturnCode.SUCCESS);
@@ -319,49 +316,100 @@ public class CalculateServiceImpl implements CalculateService {
     private void sendNewTask(Document relationOut,RegionInstanceModel regionInstanceModelFromMongo,CalculateParamVo paramVo){
         final Lock lock = new ReentrantLock();
         String regionId = paramVo.getRegionId();
-        String modelId = paramVo.getModelId();
         String instanceId = paramVo.getInstanceId();
+        RegionInstanceModel fatherRegionInstanceModel = regionInstanceRepository.findById(instanceId).get();
+        if(fatherRegionInstanceModel!=null){
+            Document relationOut1 = fatherRegionInstanceModel.getRelationOut();
+            if(relationOut1!=null){
+                for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
+
+                }
+            }
+        }
+        if(relationOut==null){
+            return;
+        }
         for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
             String key = entry.getKey();
             List<Document> value = (List<Document>) entry.getValue();
             value.forEach(item->{
                 String regionType = regionInstanceModelFromMongo.getType();
                 Object dataValue = null;
-                if(regionType.equals("Aggregators")){
-                    Document dataFromMongo = regionInstanceModelFromMongo.getData();
-                    AggregatorsType1 aggregatorsType1 = AggregatorsType1.fromDocument(dataFromMongo);
-                    dataValue = aggregatorsType1.getResult();
+                String targetRegionType = item.get("targetRegionType", String.class);
+                String targetRegionId = null;
+                if(targetRegionType.equals("othermodel")){
+                    String[] s = key.split("_");
+                    dataValue = regionInstanceModelFromMongo.getData().get(s[0]);
+                    targetRegionId = s[1];
                 }else{
-                    dataValue = regionInstanceModelFromMongo.getData().get(key);
+                    if(regionType.equals("Aggregators")){
+                        Document dataFromMongo = regionInstanceModelFromMongo.getData();
+                        AggregatorsType1 aggregatorsType1 = AggregatorsType1.fromDocument(dataFromMongo);
+                        dataValue = aggregatorsType1.getResult();
+                    }else{
+                        dataValue = regionInstanceModelFromMongo.getData().get(key);
+                    }
                 }
                 if(dataValue==null){
                     return;
                 }
-                System.out.println("Key: " + key + ", Value: " + item.toString());
-                String targetObjId = (String) item.get("targetObjId");
-                String targetPropertyName = (String) item.get("targetPropertyName");
                 CalculateParamVo calculateParamVo = new CalculateParamVo();
-                calculateParamVo.setRegionId(targetObjId);
-                calculateParamVo.setSourceId(regionId);
-                calculateParamVo.setInstanceId(instanceId);
-                calculateParamVo.setModelId(modelId);
-                Document document = new Document();
-                document.put(targetPropertyName,dataValue);
-                RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
-                regionInstanceModel.setInstanceId(instanceId);
-                regionInstanceModel.setRegionId(targetObjId);
-                Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
-                RegionInstanceModel regionInstanceModel1 = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
-                //分情况，如果调用的是othermodel,则需要在当前regionInstanceModel中取出相关的relationIn和relationOut进行匹配
-                if(regionInstanceModel1.getType().equals("othermodel")){
-                    //当前regionInstanceModel1的id即为关联子计算域实例的instanceId
-                    String id = regionInstanceModel1.getId();
-                    Document relationIn = regionInstanceModel1.getRelationIn();
-
+                Document fatherRelationDocument = null;
+                if(fatherRegionInstanceModel!=null){
+                    Document relationOut1 = fatherRegionInstanceModel.getRelationOut();
+                    if(relationOut1!=null){
+                        fatherRelationDocument = relationOut1.get(key + "_" + regionId, Document.class);
+                    }
                 }
-                String className = regionInstanceModel1.getClassName();
-                calculateParamVo.setParam(document);
-                calculateParamVo.setTypeName(className);
+                if(fatherRelationDocument!=null){
+                    String targetObjId = fatherRelationDocument.get("targetObjId", String.class);
+                    String targetPropertyName = fatherRelationDocument.get("targetPropertyName", String.class);
+                    String instanceId1 = fatherRegionInstanceModel.getInstanceId();
+                    RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
+                    regionInstanceModel.setInstanceId(instanceId1);
+                    regionInstanceModel.setRegionId(targetObjId);
+                    Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
+                    RegionInstanceModel regionInstanceModel1 = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
+                    String className = regionInstanceModel1.getClassName();
+                    calculateParamVo.setRegionId(targetObjId);
+                    calculateParamVo.setTypeName(className);
+                    calculateParamVo.setInstanceId(instanceId1);
+                    Document dataDocument = new Document();
+                    dataDocument.put(targetPropertyName,dataValue);
+                    calculateParamVo.setParam(dataDocument);
+                }else{
+                    System.out.println("Key: " + key + ", Value: " + item.toString());
+                    String targetObjId = (String) item.get("targetObjId");
+                    String targetPropertyName = (String) item.get("targetPropertyName");
+                    RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
+                    regionInstanceModel.setInstanceId(instanceId);
+                    regionInstanceModel.setRegionId(targetObjId);
+                    Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
+                    RegionInstanceModel regionInstanceModel1 = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
+                    if(regionInstanceModel1.getType().equals("othermodel")){
+                        //当前regionInstanceModel1的id即为关联子计算域实例的instanceId
+                        String id = regionInstanceModel1.getId();
+                        RegionInstanceModel regionInstanceModel2 = new RegionInstanceModel();
+                        regionInstanceModel2.setInstanceId(id);
+                        regionInstanceModel2.setRegionId(targetRegionId);
+                        Example<RegionInstanceModel> regionInstanceModelExampleexample2 = Example.of(regionInstanceModel2);
+                        RegionInstanceModel regionInstanceModel3 = regionInstanceRepository.findOne(regionInstanceModelExampleexample2).get();
+                        String className = regionInstanceModel3.getClassName();
+                        calculateParamVo.setRegionId(targetRegionId);
+                        calculateParamVo.setInstanceId(id);
+                        calculateParamVo.setTypeName(className);
+                    }else{
+                        calculateParamVo.setRegionId(targetObjId);
+                        calculateParamVo.setInstanceId(instanceId);
+                        String className = regionInstanceModel1.getClassName();
+                        calculateParamVo.setTypeName(className);
+                    }
+                    //sourceId用于聚合器
+                    calculateParamVo.setSourceId(regionId);
+                    Document document = new Document();
+                    document.put(targetPropertyName,dataValue);
+                    calculateParamVo.setParam(document);
+                }
                 //异步调用
                 CompletableFuture.runAsync(()->{
                     //此处会有线程安全问题，需要解决
