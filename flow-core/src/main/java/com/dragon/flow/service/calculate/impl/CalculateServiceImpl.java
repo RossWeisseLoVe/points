@@ -352,6 +352,13 @@ public class CalculateServiceImpl implements CalculateService {
                 regionInstanceModel.setRegionId(targetObjId);
                 Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
                 RegionInstanceModel regionInstanceModel1 = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
+                //分情况，如果调用的是othermodel,则需要在当前regionInstanceModel中取出相关的relationIn和relationOut进行匹配
+                if(regionInstanceModel1.getType().equals("othermodel")){
+                    //当前regionInstanceModel1的id即为关联子计算域实例的instanceId
+                    String id = regionInstanceModel1.getId();
+                    Document relationIn = regionInstanceModel1.getRelationIn();
+
+                }
                 String className = regionInstanceModel1.getClassName();
                 calculateParamVo.setParam(document);
                 calculateParamVo.setTypeName(className);
