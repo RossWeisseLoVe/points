@@ -62,7 +62,7 @@ public class CalculateServiceImpl implements CalculateService {
 
     @Override
     @Transactional
-    public InstanceModel newInstance(InstanceModel instanceModel) throws Exception{
+    public InstanceModel newInstance(InstanceModel instanceModel,Boolean isOtherModel,Document relationforInstance,String fatherInstanceId) throws Exception{
         String modelId = instanceModel.getModelId();
         InstanceModel save = instanceRepository.save(instanceModel);
         String id = save.getId();
@@ -79,6 +79,25 @@ public class CalculateServiceImpl implements CalculateService {
             regionInstanceModel.setRelationOut(item.getRelationOut());
             regionInstanceModel.setDescription(item.getInfo().getDescription());
             regionInstanceModel.setType(item.getInfo().getType());
+            if(isOtherModel==true){
+                Document relation = new Document();
+                for (Map.Entry<String, Object> entry : relationforInstance.entrySet()) {
+                    String key = entry.getKey();
+                    List<Document> value = (List<Document>) entry.getValue();
+                    value.forEach(rela->{
+                        rela.put("fatherInstanceId",fatherInstanceId);
+                    });
+                    String[] s = key.split("_");
+                    if(s[1].equals(item.getId())){
+                        relation.put(key,value);
+                    }
+                }
+                if(relation.isEmpty()){
+                    regionInstanceModel.setRelationOut(item.getRelationOut());
+                }else{
+                    regionInstanceModel.setRelationOut(relation);
+                }
+            }
             if(item.getInfo().getType().equals("othermodel")){
                 //如果当前region是嵌套计算域，则递归生成实例
                 String uuid = UUID.randomUUID().toString();
@@ -90,7 +109,7 @@ public class CalculateServiceImpl implements CalculateService {
                 nestingRegionInstanceModel.setId(uuid);
                 regionInstanceModel.setId(uuid);
                 try {
-                    newInstance(nestingRegionInstanceModel);
+                    newInstance(nestingRegionInstanceModel,true,item.getRelationOut(),id);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -189,7 +208,6 @@ public class CalculateServiceImpl implements CalculateService {
         //区分是自定义计算域还是聚合器等
         String type = region.getInfo().getType();
         //需要提供信息给对方的邻居节点
-        Document relationOut = region.getRelationOut();
         //动态类map
         Map<String, Class<?>> clazzMap = kieUtilClass.getClassMap();
         KieContainer kieContainer = kieUtilClass.getKieContainer();
@@ -306,7 +324,10 @@ public class CalculateServiceImpl implements CalculateService {
         }
         //还需要使用乐观锁处理线程安全问题
         regionInstanceRepository.save(regionInstanceModelFromMongo);
-        this.sendNewTask(relationOut,regionInstanceModelFromMongo,param);
+        Document relationOut = regionInstanceModelFromMongo.getRelationOut();
+        if(relationOut!=null){
+            this.sendNewTask(relationOut,regionInstanceModelFromMongo,param);
+        }
         returnVo.setMsg("计算成功");
         returnVo.setData(instance);
         returnVo.setCode(ReturnCode.SUCCESS);
@@ -317,18 +338,6 @@ public class CalculateServiceImpl implements CalculateService {
         final Lock lock = new ReentrantLock();
         String regionId = paramVo.getRegionId();
         String instanceId = paramVo.getInstanceId();
-        RegionInstanceModel fatherRegionInstanceModel = regionInstanceRepository.findById(instanceId).get();
-        if(fatherRegionInstanceModel!=null){
-            Document relationOut1 = fatherRegionInstanceModel.getRelationOut();
-            if(relationOut1!=null){
-                for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
-
-                }
-            }
-        }
-        if(relationOut==null){
-            return;
-        }
         for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
             String key = entry.getKey();
             List<Document> value = (List<Document>) entry.getValue();
@@ -337,10 +346,27 @@ public class CalculateServiceImpl implements CalculateService {
                 Object dataValue = null;
                 String targetRegionType = item.get("targetRegionType", String.class);
                 String targetRegionId = null;
+                String targetInstanceId = null;
+
+                //构造条件
+                String targetObjId = item.get("targetObjId",String.class);
+                String targetPropertyName = item.get("targetPropertyName",String.class);
+                String fatherInstanceId = item.get("fatherInstanceId", String.class);
+                RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
+                regionInstanceModel.setInstanceId(instanceId);
+                regionInstanceModel.setRegionId(targetObjId);
+
+                //确定真正的instanceId、regionId以及给dataValue赋值
                 if(targetRegionType.equals("othermodel")){
+                    //如果目标是一个嵌套对象
                     String[] s = key.split("_");
                     dataValue = regionInstanceModelFromMongo.getData().get(s[0]);
                     targetRegionId = s[1];
+                }else if(fatherInstanceId!=null) {
+                    String[] s = key.split("_");
+                    dataValue = regionInstanceModelFromMongo.getData().get(s[0]);
+                    targetRegionId = s[1];
+                    regionInstanceModel.setInstanceId(fatherInstanceId);
                 }else{
                     if(regionType.equals("Aggregators")){
                         Document dataFromMongo = regionInstanceModelFromMongo.getData();
@@ -353,63 +379,40 @@ public class CalculateServiceImpl implements CalculateService {
                 if(dataValue==null){
                     return;
                 }
+
+                //传递给下次计算的参数
                 CalculateParamVo calculateParamVo = new CalculateParamVo();
-                Document fatherRelationDocument = null;
-                if(fatherRegionInstanceModel!=null){
-                    Document relationOut1 = fatherRegionInstanceModel.getRelationOut();
-                    if(relationOut1!=null){
-                        fatherRelationDocument = relationOut1.get(key + "_" + regionId, Document.class);
-                    }
-                }
-                if(fatherRelationDocument!=null){
-                    String targetObjId = fatherRelationDocument.get("targetObjId", String.class);
-                    String targetPropertyName = fatherRelationDocument.get("targetPropertyName", String.class);
-                    String instanceId1 = fatherRegionInstanceModel.getInstanceId();
-                    RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
-                    regionInstanceModel.setInstanceId(instanceId1);
-                    regionInstanceModel.setRegionId(targetObjId);
-                    Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
-                    RegionInstanceModel regionInstanceModel1 = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
-                    String className = regionInstanceModel1.getClassName();
-                    calculateParamVo.setRegionId(targetObjId);
+                //该部分作用为找到真正的对象regionInstance
+                Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
+                RegionInstanceModel regionInstanceModel1 = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
+                if(regionInstanceModel1.getType().equals("othermodel")){
+                    //当前regionInstanceModel1的id即为关联子计算域实例的instanceId
+                    String id = regionInstanceModel1.getId();
+                    RegionInstanceModel regionInstanceModel2 = new RegionInstanceModel();
+                    regionInstanceModel2.setInstanceId(id);
+                    regionInstanceModel2.setRegionId(targetRegionId);
+                    Example<RegionInstanceModel> regionInstanceModelExampleexample2 = Example.of(regionInstanceModel2);
+                    RegionInstanceModel regionInstanceModel3 = regionInstanceRepository.findOne(regionInstanceModelExampleexample2).get();
+                    String className = regionInstanceModel3.getClassName();
+                    calculateParamVo.setRegionId(targetRegionId);
+                    calculateParamVo.setInstanceId(id);
                     calculateParamVo.setTypeName(className);
-                    calculateParamVo.setInstanceId(instanceId1);
-                    Document dataDocument = new Document();
-                    dataDocument.put(targetPropertyName,dataValue);
-                    calculateParamVo.setParam(dataDocument);
+                }else if(fatherInstanceId!=null){
+                    calculateParamVo.setRegionId(targetObjId);
+                    calculateParamVo.setInstanceId(fatherInstanceId);
+                    String className = regionInstanceModel1.getClassName();
+                    calculateParamVo.setTypeName(className);
                 }else{
-                    System.out.println("Key: " + key + ", Value: " + item.toString());
-                    String targetObjId = (String) item.get("targetObjId");
-                    String targetPropertyName = (String) item.get("targetPropertyName");
-                    RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
-                    regionInstanceModel.setInstanceId(instanceId);
-                    regionInstanceModel.setRegionId(targetObjId);
-                    Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
-                    RegionInstanceModel regionInstanceModel1 = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
-                    if(regionInstanceModel1.getType().equals("othermodel")){
-                        //当前regionInstanceModel1的id即为关联子计算域实例的instanceId
-                        String id = regionInstanceModel1.getId();
-                        RegionInstanceModel regionInstanceModel2 = new RegionInstanceModel();
-                        regionInstanceModel2.setInstanceId(id);
-                        regionInstanceModel2.setRegionId(targetRegionId);
-                        Example<RegionInstanceModel> regionInstanceModelExampleexample2 = Example.of(regionInstanceModel2);
-                        RegionInstanceModel regionInstanceModel3 = regionInstanceRepository.findOne(regionInstanceModelExampleexample2).get();
-                        String className = regionInstanceModel3.getClassName();
-                        calculateParamVo.setRegionId(targetRegionId);
-                        calculateParamVo.setInstanceId(id);
-                        calculateParamVo.setTypeName(className);
-                    }else{
-                        calculateParamVo.setRegionId(targetObjId);
-                        calculateParamVo.setInstanceId(instanceId);
-                        String className = regionInstanceModel1.getClassName();
-                        calculateParamVo.setTypeName(className);
-                    }
-                    //sourceId用于聚合器
-                    calculateParamVo.setSourceId(regionId);
-                    Document document = new Document();
-                    document.put(targetPropertyName,dataValue);
-                    calculateParamVo.setParam(document);
+                    calculateParamVo.setRegionId(targetObjId);
+                    calculateParamVo.setInstanceId(instanceId);
+                    String className = regionInstanceModel1.getClassName();
+                    calculateParamVo.setTypeName(className);
                 }
+                //sourceId用于聚合器
+                calculateParamVo.setSourceId(regionId);
+                Document document = new Document();
+                document.put(targetPropertyName,dataValue);
+                calculateParamVo.setParam(document);
                 //异步调用
                 CompletableFuture.runAsync(()->{
                     //此处会有线程安全问题，需要解决
