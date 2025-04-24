@@ -79,7 +79,7 @@ public class CalculateServiceImpl implements CalculateService {
             regionInstanceModel.setRelationOut(item.getRelationOut());
             regionInstanceModel.setDescription(item.getInfo().getDescription());
             regionInstanceModel.setType(item.getInfo().getType());
-            if(isOtherModel==true){
+            if(isOtherModel==true&&relationforInstance!=null){
                 Document relation = new Document();
                 for (Map.Entry<String, Object> entry : relationforInstance.entrySet()) {
                     String key = entry.getKey();
@@ -344,75 +344,85 @@ public class CalculateServiceImpl implements CalculateService {
             value.forEach(item->{
                 String regionType = regionInstanceModelFromMongo.getType();
                 Object dataValue = null;
-                String targetRegionType = item.get("targetRegionType", String.class);
-                String targetRegionId = null;
-                String targetInstanceId = null;
-
                 //构造条件
+                String targetRegionType = item.get("targetRegionType", String.class);
                 String targetObjId = item.get("targetObjId",String.class);
                 String targetPropertyName = item.get("targetPropertyName",String.class);
                 String fatherInstanceId = item.get("fatherInstanceId", String.class);
+                String targetFatherRegionId = item.get("targetFatherRegionId",String.class);
                 RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
-                regionInstanceModel.setInstanceId(instanceId);
-                regionInstanceModel.setRegionId(targetObjId);
-
-                //确定真正的instanceId、regionId以及给dataValue赋值
-                if(targetRegionType.equals("othermodel")){
-                    //如果目标是一个嵌套对象
+                //传递给下次计算的参数
+                CalculateParamVo calculateParamVo = new CalculateParamVo();
+                //四种情况 O2U U2O O2O U2U
+                //如果fatherInstanceId不为空且targetRegionType为othermodel,则为O2O
+                if(targetRegionType.equals("othermodel")&&fatherInstanceId!=null){
+                    //O2O
+                    RegionInstanceModel queryModel = new RegionInstanceModel();
+                    queryModel.setRegionId(targetFatherRegionId);
+                    queryModel.setInstanceId(fatherInstanceId);
+                    Example<RegionInstanceModel> fatherExample = Example.of(queryModel);
+                    RegionInstanceModel fatherRegionInstance = regionInstanceRepository.findOne(fatherExample).get();
+                    String fid = fatherRegionInstance.getId();
+                    regionInstanceModel.setInstanceId(fid);
+                    regionInstanceModel.setRegionId(targetObjId);
                     String[] s = key.split("_");
                     dataValue = regionInstanceModelFromMongo.getData().get(s[0]);
-                    targetRegionId = s[1];
-                }else if(fatherInstanceId!=null) {
-                    String[] s = key.split("_");
-                    dataValue = regionInstanceModelFromMongo.getData().get(s[0]);
-                    targetRegionId = s[1];
+                }else if(targetRegionType.equals("othermodel")&&fatherInstanceId==null){
+                    //U2O
+                    RegionInstanceModel queryModel = new RegionInstanceModel();
+                    queryModel.setRegionId(targetFatherRegionId);
+                    queryModel.setInstanceId(instanceId);
+                    Example<RegionInstanceModel> fatherExample = Example.of(queryModel);
+                    RegionInstanceModel fatherRegionInstance = regionInstanceRepository.findOne(fatherExample).get();
+                    String fid = fatherRegionInstance.getId();
+                    regionInstanceModel.setInstanceId(fid);
+                    regionInstanceModel.setRegionId(targetObjId);
+                    dataValue = regionInstanceModelFromMongo.getData().get(key);
+                }else if((!targetRegionType.equals("othermodel"))&&fatherInstanceId!=null){
+                    //O2U
                     regionInstanceModel.setInstanceId(fatherInstanceId);
+                    regionInstanceModel.setRegionId(targetObjId);
+                    String[] s = key.split("_");
+                    dataValue = regionInstanceModelFromMongo.getData().get(s[0]);
                 }else{
-                    if(regionType.equals("Aggregators")){
-                        Document dataFromMongo = regionInstanceModelFromMongo.getData();
-                        AggregatorsType1 aggregatorsType1 = AggregatorsType1.fromDocument(dataFromMongo);
-                        dataValue = aggregatorsType1.getResult();
-                    }else{
-                        dataValue = regionInstanceModelFromMongo.getData().get(key);
-                    }
+                    //U2U
+                    regionInstanceModel.setInstanceId(instanceId);
+                    regionInstanceModel.setRegionId(targetObjId);
+                    dataValue = regionInstanceModelFromMongo.getData().get(key);
                 }
                 if(dataValue==null){
                     return;
                 }
-
-                //传递给下次计算的参数
-                CalculateParamVo calculateParamVo = new CalculateParamVo();
                 //该部分作用为找到真正的对象regionInstance
                 Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
-                RegionInstanceModel regionInstanceModel1 = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
-                if(regionInstanceModel1.getType().equals("othermodel")){
-                    //当前regionInstanceModel1的id即为关联子计算域实例的instanceId
-                    String id = regionInstanceModel1.getId();
-                    RegionInstanceModel regionInstanceModel2 = new RegionInstanceModel();
-                    regionInstanceModel2.setInstanceId(id);
-                    regionInstanceModel2.setRegionId(targetRegionId);
-                    Example<RegionInstanceModel> regionInstanceModelExampleexample2 = Example.of(regionInstanceModel2);
-                    RegionInstanceModel regionInstanceModel3 = regionInstanceRepository.findOne(regionInstanceModelExampleexample2).get();
-                    String className = regionInstanceModel3.getClassName();
-                    calculateParamVo.setRegionId(targetRegionId);
-                    calculateParamVo.setInstanceId(id);
-                    calculateParamVo.setTypeName(className);
-                }else if(fatherInstanceId!=null){
-                    calculateParamVo.setRegionId(targetObjId);
-                    calculateParamVo.setInstanceId(fatherInstanceId);
-                    String className = regionInstanceModel1.getClassName();
-                    calculateParamVo.setTypeName(className);
-                }else{
-                    calculateParamVo.setRegionId(targetObjId);
-                    calculateParamVo.setInstanceId(instanceId);
-                    String className = regionInstanceModel1.getClassName();
-                    calculateParamVo.setTypeName(className);
-                }
-                //sourceId用于聚合器
-                calculateParamVo.setSourceId(regionId);
+                RegionInstanceModel realTarget = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
+                String className = realTarget.getClassName();
+                calculateParamVo.setTypeName(className);
+                calculateParamVo.setInstanceId(realTarget.getInstanceId());
+                calculateParamVo.setRegionId(realTarget.getRegionId());
                 Document document = new Document();
                 document.put(targetPropertyName,dataValue);
                 calculateParamVo.setParam(document);
+//                if(targetRegionType.equals("othermodel")){
+//                    //如果目标是一个嵌套对象
+//                    String[] s = key.split("_");
+//                    dataValue = regionInstanceModelFromMongo.getData().get(s[0]);
+//                    targetRegionId = s[1];
+//                }else if(fatherInstanceId!=null) {
+//                    String[] s = key.split("_");
+//                    dataValue = regionInstanceModelFromMongo.getData().get(s[0]);
+//                    targetRegionId = s[1];
+//                    regionInstanceModel.setInstanceId(fatherInstanceId);
+//                }else{
+//                    if(regionType.equals("Aggregators")){
+//                        Document dataFromMongo = regionInstanceModelFromMongo.getData();
+//                        AggregatorsType1 aggregatorsType1 = AggregatorsType1.fromDocument(dataFromMongo);
+//                        dataValue = aggregatorsType1.getResult();
+//                    }else{
+//                        dataValue = regionInstanceModelFromMongo.getData().get(key);
+//                    }
+//                }
+
                 //异步调用
                 CompletableFuture.runAsync(()->{
                     //此处会有线程安全问题，需要解决

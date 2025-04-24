@@ -2,6 +2,7 @@ package com.dragon.flow.service.calculate;
 
 import com.dragon.flow.model.calculate.RegionInstanceModel;
 import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 
 import java.util.List;
 
