@@ -144,6 +144,7 @@ public class CalculateResource {
 
     @PostMapping("newInstance")
     public ReturnVo<InstanceModel> newInstance(@RequestBody InstanceModel instanceModel) throws Exception {
+        instanceModel.setType("independent");
         InstanceModel one = calculateService.newInstance(instanceModel,false,null,null);
         ReturnVo<InstanceModel> regionModelReturnVo = new ReturnVo<>();
         regionModelReturnVo.setData(one);

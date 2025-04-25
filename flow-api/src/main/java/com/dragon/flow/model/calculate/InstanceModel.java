@@ -15,11 +15,21 @@ public class InstanceModel extends BaseModel {
     @Id
     private String id;
 
+    private String fid;
+
     private String modelId;
 
     private String name;
 
     private String description;
+
+    private String type;
+
+    //物化路径
+    private String path;
+    //树的层级
+    private Integer level;
+
 
     @Transient
     private List<RegionInstanceModel> data;

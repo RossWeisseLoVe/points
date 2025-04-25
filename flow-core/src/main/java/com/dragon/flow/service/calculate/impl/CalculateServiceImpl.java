@@ -101,15 +101,17 @@ public class CalculateServiceImpl implements CalculateService {
             if(item.getInfo().getType().equals("othermodel")){
                 //如果当前region是嵌套计算域，则递归生成实例
                 String uuid = UUID.randomUUID().toString();
-                InstanceModel nestingRegionInstanceModel = new InstanceModel();
-                nestingRegionInstanceModel.setModelId(item.getInfo().getSourceModelId());
-                nestingRegionInstanceModel.setName(item.getInfo().getClassName());
-                nestingRegionInstanceModel.setDescription(instanceModel.getName()+"的子计算域");
+                InstanceModel nestingInstanceModel = new InstanceModel();
+                nestingInstanceModel.setModelId(item.getInfo().getSourceModelId());
+                nestingInstanceModel.setName(item.getInfo().getClassName());
+                nestingInstanceModel.setDescription(instanceModel.getName()+"的子计算域");
+                nestingInstanceModel.setFid(id);
                 //以下两句代码的意义是：将regionInstance表中的嵌套模型实例与其每个计算域实例关联起来
-                nestingRegionInstanceModel.setId(uuid);
+                nestingInstanceModel.setId(uuid);
+                nestingInstanceModel.setType("othermodel");
                 regionInstanceModel.setId(uuid);
                 try {
-                    newInstance(nestingRegionInstanceModel,true,item.getRelationOut(),id);
+                    newInstance(nestingInstanceModel,true,item.getRelationOut(),id);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
