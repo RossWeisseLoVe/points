@@ -106,6 +106,9 @@ public class CalculateServiceImpl implements CalculateService {
                 nestingInstanceModel.setName(item.getInfo().getClassName());
                 nestingInstanceModel.setDescription(instanceModel.getName()+"的子计算域");
                 nestingInstanceModel.setFid(id);
+                nestingInstanceModel.setLevel(instanceModel.getLevel()+1);
+                nestingInstanceModel.setPath(instanceModel.getPath() == null ?
+                        id : instanceModel.getPath() + "," + id);
                 //以下两句代码的意义是：将regionInstance表中的嵌套模型实例与其每个计算域实例关联起来
                 nestingInstanceModel.setId(uuid);
                 nestingInstanceModel.setType("othermodel");

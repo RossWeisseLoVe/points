@@ -7,6 +7,7 @@ import com.dragon.flow.model.calculate.RegionInstanceModel;
 import com.dragon.flow.model.calculate.RegionModel;
 import com.dragon.flow.model.customer.Activity;
 import com.dragon.flow.service.calculate.*;
+import com.dragon.flow.service.calculate.impl.InstanceImpl;
 import com.dragon.flow.vo.calculate.CalculateParamVo;
 import com.dragon.flow.vo.pager.ParamVo;
 import com.dragon.tools.common.ReturnCode;
@@ -42,6 +43,9 @@ public class CalculateResource {
 
     @Autowired
     private RegionInstanceRepository regionInstanceRepository;
+
+    @Autowired
+    private InstanceImpl instanceImpl;
 
 //    @PostMapping("/reload")
 //    public ReturnVo<String> reload() throws Exception {
@@ -145,6 +149,9 @@ public class CalculateResource {
     @PostMapping("newInstance")
     public ReturnVo<InstanceModel> newInstance(@RequestBody InstanceModel instanceModel) throws Exception {
         instanceModel.setType("independent");
+        instanceModel.setLevel(0);
+        instanceModel.setPath(null);
+        instanceModel.setFid(null);
         InstanceModel one = calculateService.newInstance(instanceModel,false,null,null);
         ReturnVo<InstanceModel> regionModelReturnVo = new ReturnVo<>();
         regionModelReturnVo.setData(one);
@@ -174,11 +181,12 @@ public class CalculateResource {
                 .withIgnoreCase(true);
         Example<InstanceModel> example = Example.of(entity,matcher);
         Page<InstanceModel> page = instanceRepository.findAll(example,pageable);
+        List<InstanceModel> rootsWithSubtrees = instanceImpl.getRootsWithSubtrees(page);
         List<InstanceModel> content = page.getContent();
         ReturnVo<List<InstanceModel>> listReturnVo = new ReturnVo<>();
         listReturnVo.setCode(ReturnCode.SUCCESS);
         listReturnVo.setMsg("查询成功");
-        listReturnVo.setData(content);
+        listReturnVo.setData(rootsWithSubtrees);
         return listReturnVo;
     }
 
