@@ -196,16 +196,11 @@ public class CalculateResource {
         return new ReturnVo<List<RegionInstanceModel>>(ReturnCode.SUCCESS,"查询成功",regionInstanceModelList);
     }
 
-    @PostMapping("getRegionInstanceByRegionIdAndInstanceId")
-    public ReturnVo<RegionInstanceModel> getRegionInstanceByRegionIdAndInstanceId(@RequestBody CalculateParamVo param){
-        String regionId = param.getRegionId();
-        String instanceId = param.getInstanceId();
-        RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
-        regionInstanceModel.setInstanceId(instanceId);
-        regionInstanceModel.setRegionId(regionId);
-        Example<RegionInstanceModel> example = Example.of(regionInstanceModel);
-        RegionInstanceModel regionInstance = regionInstanceRepository.findOne(example).get();
-        ReturnVo<RegionInstanceModel> regionInstanceModelReturnVo = new ReturnVo<>(ReturnCode.SUCCESS,"查询成功",regionInstance);
+    @PostMapping("getRegionInstanceById")
+    public ReturnVo<RegionInstanceModel> getRegionInstanceById(@RequestBody CalculateParamVo param){
+        String id = param.getRegionInstanceId();
+        RegionInstanceModel regionInstanceModel = regionInstanceRepository.findById(id).get();
+        ReturnVo<RegionInstanceModel> regionInstanceModelReturnVo = new ReturnVo<>(ReturnCode.SUCCESS,"查询成功",regionInstanceModel);
         return regionInstanceModelReturnVo;
     }
 

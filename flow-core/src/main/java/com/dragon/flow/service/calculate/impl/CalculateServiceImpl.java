@@ -77,6 +77,7 @@ public class CalculateServiceImpl implements CalculateService {
             regionInstanceModel.setClassName(item.getInfo().getClassName());
             regionInstanceModel.setRelationIn(item.getRelationIn());
             regionInstanceModel.setRelationOut(item.getRelationOut());
+            regionInstanceModel.setProperties(item.getInfo().getProperties());
             regionInstanceModel.setDescription(item.getInfo().getDescription());
             regionInstanceModel.setType(item.getInfo().getType());
             if(isOtherModel==true&&relationforInstance!=null){
@@ -98,7 +99,8 @@ public class CalculateServiceImpl implements CalculateService {
                     regionInstanceModel.setRelationOut(relation);
                 }
             }
-            if(item.getInfo().getType().equals("othermodel")){
+            String type = item.getInfo().getType();
+            if(type.equals("othermodel")){
                 //如果当前region是嵌套计算域，则递归生成实例
                 String uuid = UUID.randomUUID().toString();
                 InstanceModel nestingInstanceModel = new InstanceModel();
@@ -118,10 +120,8 @@ public class CalculateServiceImpl implements CalculateService {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-            }
-            String type = item.getInfo().getType();
-            //如果该计算域为聚合器的话
-            if(type.equals("Aggregators")){
+            }else if(type.equals("Aggregators")){
+                //如果该计算域为聚合器的话
                 String className = item.getInfo().getClassName();
                 if(className.equals("com.dragon.flow.model.aggregators.Average")){
                     Document average = new Document();
@@ -144,8 +144,6 @@ public class CalculateServiceImpl implements CalculateService {
                     regionInstanceModel.setData(document);
                 }
                 //根据不同的className执行不同的方法
-            }else if(type.equals("othermodel")){
-
             }else{
                 try {
                     Class<?> aClass = classMap.get(item.getInfo().getClassName());
@@ -393,7 +391,12 @@ public class CalculateServiceImpl implements CalculateService {
                     //U2U
                     regionInstanceModel.setInstanceId(instanceId);
                     regionInstanceModel.setRegionId(targetObjId);
-                    dataValue = regionInstanceModelFromMongo.getData().get(key);
+                    if(regionType.equals("Aggregators")){
+                        AggregatorsType1 aggregatorsType1 = AggregatorsType1.fromDocument(regionInstanceModelFromMongo.getData());
+                        dataValue = aggregatorsType1.getResult();
+                    }else{
+                        dataValue = regionInstanceModelFromMongo.getData().get(key);
+                    }
                 }
                 if(dataValue==null){
                     return;
@@ -405,6 +408,7 @@ public class CalculateServiceImpl implements CalculateService {
                 calculateParamVo.setTypeName(className);
                 calculateParamVo.setInstanceId(realTarget.getInstanceId());
                 calculateParamVo.setRegionId(realTarget.getRegionId());
+                calculateParamVo.setSourceId(regionId);
                 Document document = new Document();
                 document.put(targetPropertyName,dataValue);
                 calculateParamVo.setParam(document);

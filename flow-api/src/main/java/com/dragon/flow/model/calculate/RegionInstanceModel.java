@@ -21,6 +21,8 @@ public class RegionInstanceModel extends BaseModel {
 
     private String description;
 
+    private List<PropertyDefinition> properties;
+
     //类型 普通box或者聚合器
     private String type;
 
