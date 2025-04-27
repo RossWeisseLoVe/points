@@ -152,7 +152,7 @@ public class CalculateResource {
         instanceModel.setLevel(0);
         instanceModel.setPath(null);
         instanceModel.setFid(null);
-        InstanceModel one = calculateService.newInstance(instanceModel,false,null,null);
+        InstanceModel one = calculateService.newInstance(instanceModel,false,null,null,null);
         ReturnVo<InstanceModel> regionModelReturnVo = new ReturnVo<>();
         regionModelReturnVo.setData(one);
         regionModelReturnVo.setMsg("实例化成功");

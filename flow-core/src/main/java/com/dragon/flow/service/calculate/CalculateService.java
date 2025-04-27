@@ -12,7 +12,7 @@ public interface CalculateService {
 
     public CalculateModel getModelById(String id);
 
-    public InstanceModel newInstance(InstanceModel instanceModel, Boolean isOtherModel, Document relation,String fatherInstanceId) throws Exception;
+    public InstanceModel newInstance(InstanceModel instanceModel, Boolean isOtherModel, Document relation,Document relationInForInstance,String fatherInstanceId) throws Exception;
 
     public void callSetterMethod(Object obj, String propertyName,Object fieldValue);
 

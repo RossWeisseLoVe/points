@@ -62,7 +62,7 @@ public class CalculateServiceImpl implements CalculateService {
 
     @Override
     @Transactional
-    public InstanceModel newInstance(InstanceModel instanceModel,Boolean isOtherModel,Document relationforInstance,String fatherInstanceId) throws Exception{
+    public InstanceModel newInstance(InstanceModel instanceModel,Boolean isOtherModel,Document relationOutForInstance,Document relationInForInstance,String fatherInstanceId) throws Exception{
         String modelId = instanceModel.getModelId();
         InstanceModel save = instanceRepository.save(instanceModel);
         String id = save.getId();
@@ -80,9 +80,9 @@ public class CalculateServiceImpl implements CalculateService {
             regionInstanceModel.setProperties(item.getInfo().getProperties());
             regionInstanceModel.setDescription(item.getInfo().getDescription());
             regionInstanceModel.setType(item.getInfo().getType());
-            if(isOtherModel==true&&relationforInstance!=null){
+            if(isOtherModel==true&&relationOutForInstance!=null){
                 Document relation = new Document();
-                for (Map.Entry<String, Object> entry : relationforInstance.entrySet()) {
+                for (Map.Entry<String, Object> entry : relationOutForInstance.entrySet()) {
                     String key = entry.getKey();
                     List<Document> value = (List<Document>) entry.getValue();
                     value.forEach(rela->{
@@ -97,6 +97,25 @@ public class CalculateServiceImpl implements CalculateService {
                     regionInstanceModel.setRelationOut(item.getRelationOut());
                 }else{
                     regionInstanceModel.setRelationOut(relation);
+                }
+            }
+            if(isOtherModel==true&&relationInForInstance!=null){
+                Document relation = new Document();
+                for (Map.Entry<String, Object> entry : relationInForInstance.entrySet()) {
+                    String key = entry.getKey();
+                    List<Document> value = (List<Document>) entry.getValue();
+//                    value.forEach(rela->{
+//                        rela.put("fatherInstanceId",fatherInstanceId);
+//                    });
+                    String[] s = key.split("_");
+                    if(s[1].equals(item.getId())){
+                        relation.put(key,value);
+                    }
+                }
+                if(relation.isEmpty()){
+                    regionInstanceModel.setRelationIn(item.getRelationIn());
+                }else{
+                    regionInstanceModel.setRelationIn(relation);
                 }
             }
             String type = item.getInfo().getType();
@@ -116,7 +135,7 @@ public class CalculateServiceImpl implements CalculateService {
                 nestingInstanceModel.setType("othermodel");
                 regionInstanceModel.setId(uuid);
                 try {
-                    newInstance(nestingInstanceModel,true,item.getRelationOut(),id);
+                    newInstance(nestingInstanceModel,true,item.getRelationOut(),item.getRelationIn(),id);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -124,17 +143,19 @@ public class CalculateServiceImpl implements CalculateService {
                 //如果该计算域为聚合器的话
                 String className = item.getInfo().getClassName();
                 if(className.equals("com.dragon.flow.model.aggregators.Average")){
-                    Document average = new Document();
                     AggregatorsType1 aggregatorsType1 = new AggregatorsType1();
                     Document stringDocumentMap = new Document();
-                    for (Map.Entry<String, Object> entry : item.getRelationIn().entrySet()) {
-                        String key = entry.getKey();
-                        List<Document> value = (List<Document>) entry.getValue();
-                        if(key.equals("list")){
-                            value.forEach(relation->{
-                                String sourceObjId = (String) relation.get("sourceObjId");
-                                stringDocumentMap.put(sourceObjId,null);
-                            });
+                    if(regionInstanceModel.getRelationIn()!=null){
+                        for (Map.Entry<String, Object> entry : regionInstanceModel.getRelationIn().entrySet()) {
+                            String key = entry.getKey();
+                            List<Document> value = (List<Document>) entry.getValue();
+                            String[] s = key.split("_");
+                            if(s[0].equals("list")){
+                                value.forEach(relation->{
+                                    String sourceObjId = (String) relation.get("sourceObjId");
+                                    stringDocumentMap.put(sourceObjId,null);
+                                });
+                            }
                         }
                     }
                     aggregatorsType1.setDataMap(stringDocumentMap);
