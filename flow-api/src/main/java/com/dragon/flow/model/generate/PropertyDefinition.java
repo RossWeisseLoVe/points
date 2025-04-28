@@ -53,4 +53,7 @@ public class PropertyDefinition extends BaseModel implements Serializable {
     //用于记录所属region的类型（box、agg\other）
     private String regionType;
 
+    //是否为即时聚合  1为是，0为否
+    private Integer isAnyTime;
+
 }

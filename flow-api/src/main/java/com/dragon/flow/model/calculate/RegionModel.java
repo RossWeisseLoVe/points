@@ -24,7 +24,6 @@ public class RegionModel {
 
     private String type;
 
-    //是否为即时聚合  1为是，0为否
-    private Integer isAnytime;
+    private Integer isGhost;
 
 }

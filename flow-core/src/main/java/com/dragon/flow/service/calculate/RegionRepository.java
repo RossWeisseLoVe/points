@@ -10,9 +10,10 @@ public interface RegionRepository extends MongoRepository<RegionModel,String> {
     @Override
     <S extends RegionModel> List<S> saveAll(Iterable<S> entities);
 
-
     List<RegionModel> findByModelId(String modelId);
 
     void deleteAllByModelId(String modelId);
 
+    @Override
+    List<RegionModel> findAllById(Iterable<String> strings);
 }

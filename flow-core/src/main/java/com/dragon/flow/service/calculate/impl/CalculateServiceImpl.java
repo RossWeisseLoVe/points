@@ -71,6 +71,9 @@ public class CalculateServiceImpl implements CalculateService {
         Map<String, Class<?>> classMap = kieUtilClass.getClassMap();
         List<RegionInstanceModel> regionInstanceModels = new ArrayList<>();
         template.forEach(item->{
+            if(Objects.equals(item.getIsGhost(), 1)){
+                return;
+            }
             RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
             regionInstanceModel.setInstanceId(id);
             regionInstanceModel.setRegionId(item.getId());

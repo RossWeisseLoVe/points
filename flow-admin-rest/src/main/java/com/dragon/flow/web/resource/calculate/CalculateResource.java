@@ -211,5 +211,14 @@ public class CalculateResource {
     }
 
 
+    @PostMapping("getRegionsByIds")
+    public ReturnVo<List<RegionModel>> getRegionsByIds(@RequestBody List<String> items){
+        List<RegionModel> allById = regionRepository.findAllById(items);
+        ReturnVo<List<RegionModel>> listReturnVo = new ReturnVo<>();
+        listReturnVo.setMsg("查询成功");
+        listReturnVo.setCode(ReturnCode.SUCCESS);
+        listReturnVo.setData(allById);
+        return listReturnVo;
+    }
 
 }
