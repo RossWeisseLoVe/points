@@ -2,9 +2,12 @@ package com.dragon.flow.service.calculate;
 
 import com.dragon.flow.model.calculate.CalculateModel;
 import com.dragon.flow.model.calculate.InstanceModel;
+import com.dragon.flow.vo.calculate.BatchNewGhostVo;
 import com.dragon.flow.vo.calculate.CalculateParamVo;
 import com.dragon.tools.vo.ReturnVo;
 import org.bson.Document;
+
+import java.util.List;
 
 public interface CalculateService {
 
@@ -15,5 +18,7 @@ public interface CalculateService {
     public InstanceModel newInstance(InstanceModel instanceModel, Boolean isOtherModel, Document relation,Document relationInForInstance,String fatherInstanceId) throws Exception;
 
     public void callSetterMethod(Object obj, String propertyName,Object fieldValue);
+
+    public void setGhostInstance(List<BatchNewGhostVo> items);
 
 }

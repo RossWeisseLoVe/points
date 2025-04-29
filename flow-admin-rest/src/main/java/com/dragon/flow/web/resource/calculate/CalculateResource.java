@@ -8,6 +8,7 @@ import com.dragon.flow.model.calculate.RegionModel;
 import com.dragon.flow.model.customer.Activity;
 import com.dragon.flow.service.calculate.*;
 import com.dragon.flow.service.calculate.impl.InstanceImpl;
+import com.dragon.flow.vo.calculate.BatchNewGhostVo;
 import com.dragon.flow.vo.calculate.CalculateParamVo;
 import com.dragon.flow.vo.pager.ParamVo;
 import com.dragon.tools.common.ReturnCode;
@@ -220,5 +221,15 @@ public class CalculateResource {
         listReturnVo.setData(allById);
         return listReturnVo;
     }
+
+    @PostMapping("setGhostInstance")
+    public ReturnVo setGhostInstance(@RequestBody List<BatchNewGhostVo> items){
+        calculateService.setGhostInstance(items);
+        items.forEach(item->{
+            System.out.println("=========="+item.toString());
+        });
+        return new ReturnVo(ReturnCode.SUCCESS,"新增成功",null);
+    }
+
 
 }

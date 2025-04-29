@@ -8,6 +8,7 @@ import com.dragon.flow.model.calculate.RegionInstanceModel;
 import com.dragon.flow.model.calculate.RegionModel;
 import com.dragon.flow.model.generate.PropertyDefinition;
 import com.dragon.flow.service.calculate.*;
+import com.dragon.flow.vo.calculate.BatchNewGhostVo;
 import com.dragon.flow.vo.calculate.CalculateParamVo;
 import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.vo.ReturnVo;
@@ -483,4 +484,8 @@ public class CalculateServiceImpl implements CalculateService {
         }
     }
 
+    @Override
+    public void setGhostInstance(List<BatchNewGhostVo> items) {
+
+    }
 }
