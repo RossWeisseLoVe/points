@@ -11,6 +11,8 @@ public class BatchNewGhostVo {
 
     private String instanceId;
 
-    private List<GhostItem> sourceRegionIds;
+    private String regionType;
+
+    private List<GhostItem> sourceRegions;
 }
 

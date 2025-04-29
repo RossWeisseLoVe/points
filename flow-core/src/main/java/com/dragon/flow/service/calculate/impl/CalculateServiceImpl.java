@@ -10,6 +10,7 @@ import com.dragon.flow.model.generate.PropertyDefinition;
 import com.dragon.flow.service.calculate.*;
 import com.dragon.flow.vo.calculate.BatchNewGhostVo;
 import com.dragon.flow.vo.calculate.CalculateParamVo;
+import com.dragon.flow.vo.calculate.GhostItem;
 import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.vo.ReturnVo;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -486,6 +487,55 @@ public class CalculateServiceImpl implements CalculateService {
 
     @Override
     public void setGhostInstance(List<BatchNewGhostVo> items) {
+        List<RegionInstanceModel> regionInstanceModelList = new ArrayList<>();
+        items.forEach(item->{
+            String instanceId = item.getInstanceId();
+            String regionType = item.getRegionType();
+            List<GhostItem> sourceRegions = item.getSourceRegions();
+            sourceRegions.forEach(ghost->{
+                RegionModel region = ghost.getRegion();
+                Integer count = ghost.getCount();
+                for (int i = 0; i < count; i++) {
+                    RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
+                    regionInstanceModel.setInstanceId(instanceId);
+                    regionInstanceModel.setRegionId(region.getId());
+                    regionInstanceModel.setClassName(region.getInfo().getClassName());
+                    regionInstanceModel.setRelationIn(region.getRelationIn());
+                    regionInstanceModel.setRelationOut(region.getRelationOut());
+                    regionInstanceModel.setProperties(region.getInfo().getProperties());
+                    regionInstanceModel.setDescription(region.getInfo().getDescription());
+                    regionInstanceModel.setType(region.getInfo().getType());
+                    try {
+                        Map<String, Class<?>> classMap = kieUtilClass.getClassMap();
+                        Class<?> aClass = classMap.get(region.getInfo().getClassName());
+                        Object data = aClass.newInstance();
+                        Document document = new Document();
+                        for (Field field : aClass.getDeclaredFields()) {
+                            field.setAccessible(true); // 强制访问私有字段
+                            Object value = field.get(data);
+                            document.put(field.getName(), value);
+                        }
+                        regionInstanceModel.setData(document);
+                    } catch (InstantiationException e) {
+                        e.printStackTrace();
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
+                    regionInstanceModelList.add(regionInstanceModel);
+                }
+                //构建一下给目标的relationIn
+                Document relationIn = region.getRelationIn();
+                if(!relationIn.isEmpty()){
 
+
+                }
+                Document relationOut = region.getRelationOut();
+                if(!relationOut.isEmpty()){
+
+
+                }
+            });
+        });
+        regionInstanceRepository.saveAll(regionInstanceModelList);
     }
 }
