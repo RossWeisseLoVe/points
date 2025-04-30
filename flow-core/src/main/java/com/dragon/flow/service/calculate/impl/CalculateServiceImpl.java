@@ -279,11 +279,10 @@ public class CalculateServiceImpl implements CalculateService {
             });
         }else{
             //程序自己异步调用
-            RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
-            regionInstanceModel.setInstanceId(instanceId);
-            regionInstanceModel.setRegionId(regionId);
-            Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
-            regionInstanceModelFromMongo = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
+//            RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
+//            regionInstanceModel.setInstanceId(instanceId);
+//            regionInstanceModel.setRegionId(regionId);
+            regionInstanceModelFromMongo = regionInstanceRepository.findById(param.getRegionInstanceId()).get();
             Document dataFromMongo = regionInstanceModelFromMongo.getData();
             System.out.println("type==================="+type);
             //如果当前计算域为聚合器，则进入聚合器的计算流程
@@ -429,12 +428,14 @@ public class CalculateServiceImpl implements CalculateService {
                 }
                 //该部分作用为找到真正的对象regionInstance
                 Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
+                //由于加入了幽灵Region的设计，所以以后不能再用
                 RegionInstanceModel realTarget = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
                 String className = realTarget.getClassName();
                 calculateParamVo.setTypeName(className);
                 calculateParamVo.setInstanceId(realTarget.getInstanceId());
                 calculateParamVo.setRegionId(realTarget.getRegionId());
                 calculateParamVo.setSourceId(regionId);
+                calculateParamVo.setRegionInstanceId(realTarget.getId());
                 Document document = new Document();
                 document.put(targetPropertyName,dataValue);
                 calculateParamVo.setParam(document);
@@ -488,6 +489,8 @@ public class CalculateServiceImpl implements CalculateService {
     @Override
     public void setGhostInstance(List<BatchNewGhostVo> items) {
         List<RegionInstanceModel> regionInstanceModelList = new ArrayList<>();
+        //这个是为了找到所有source的准备
+        List<RegionInstanceModel> sourceRegionInstanceModelExamples = new ArrayList<>();
         items.forEach(item->{
             String instanceId = item.getInstanceId();
             String regionType = item.getRegionType();
@@ -495,16 +498,41 @@ public class CalculateServiceImpl implements CalculateService {
             sourceRegions.forEach(ghost->{
                 RegionModel region = ghost.getRegion();
                 Integer count = ghost.getCount();
+                //构建一下给目标的relationIn
+                Document relationIn = region.getRelationIn();
+                if(!relationIn.isEmpty()){
+                    for (Map.Entry<String, Object> entry : relationIn.entrySet()) {
+                        String key = entry.getKey();
+                        List<Document> value = (List<Document>) entry.getValue();
+                        value.forEach(rela->{
+                            Document relation = new Document();
+                            relation.put("sourceLabel",rela.get("sourceLabel", String.class));
+                            relation.put("sourceObjId",rela.get("sourceObjId", String.class));
+                            relation.put("sourcePropertyName",rela.get("sourceObjId", String.class));
+                            RegionInstanceModel example = new RegionInstanceModel();
+                            example.setInstanceId(instanceId);
+                            example.setRegionId(rela.get("sourceObjId", String.class));
+                            sourceRegionInstanceModelExamples.add(example);
+                        });
+                    }
+                }
+                //直接在这里生成要写入源头的relation
+                Map<String, Document> regionIdRelationMap = new HashMap<>();
                 for (int i = 0; i < count; i++) {
                     RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
                     regionInstanceModel.setInstanceId(instanceId);
-                    regionInstanceModel.setRegionId(region.getId());
+                    String uuid = UUID.randomUUID().toString();
+                    regionInstanceModel.setRegionId(uuid);
                     regionInstanceModel.setClassName(region.getInfo().getClassName());
                     regionInstanceModel.setRelationIn(region.getRelationIn());
                     regionInstanceModel.setRelationOut(region.getRelationOut());
                     regionInstanceModel.setProperties(region.getInfo().getProperties());
                     regionInstanceModel.setDescription(region.getInfo().getDescription());
                     regionInstanceModel.setType(region.getInfo().getType());
+                    Document relation = new Document();
+                    relation.put("targetObjId",uuid);
+                    relation.put("targetRegionType",region.getInfo().getType());
+                    regionIdRelationMap.put(uuid,relation);
                     try {
                         Map<String, Class<?>> classMap = kieUtilClass.getClassMap();
                         Class<?> aClass = classMap.get(region.getInfo().getClassName());
@@ -523,12 +551,7 @@ public class CalculateServiceImpl implements CalculateService {
                     }
                     regionInstanceModelList.add(regionInstanceModel);
                 }
-                //构建一下给目标的relationIn
-                Document relationIn = region.getRelationIn();
-                if(!relationIn.isEmpty()){
 
-
-                }
                 Document relationOut = region.getRelationOut();
                 if(!relationOut.isEmpty()){
 
