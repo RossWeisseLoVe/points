@@ -491,6 +491,7 @@ public class CalculateServiceImpl implements CalculateService {
         List<RegionInstanceModel> regionInstanceModelList = new ArrayList<>();
         //这个是为了找到所有source的准备
         List<RegionInstanceModel> sourceRegionInstanceModelExamples = new ArrayList<>();
+        Map<String, Map<String, List<Document>>> relationInMap = new HashMap<>();
         items.forEach(item->{
             String instanceId = item.getInstanceId();
             String regionType = item.getRegionType();
@@ -500,15 +501,30 @@ public class CalculateServiceImpl implements CalculateService {
                 Integer count = ghost.getCount();
                 //构建一下给目标的relationIn
                 Document relationIn = region.getRelationIn();
+                String id = region.getId();
+                String type = region.getInfo().getType();
                 if(!relationIn.isEmpty()){
                     for (Map.Entry<String, Object> entry : relationIn.entrySet()) {
                         String key = entry.getKey();
                         List<Document> value = (List<Document>) entry.getValue();
                         value.forEach(rela->{
+                            String sourceObjId = rela.get("sourceObjId", String.class);
+                            if(relationInMap.get(sourceObjId)==null){
+                                Map<String, List<Document>> stringDocumentMap = new HashMap<>();
+                                relationInMap.put(sourceObjId,stringDocumentMap);
+                            }
+                            Map<String, List<Document>> stringDocumentMap = relationInMap.get(sourceObjId);
+
                             Document relation = new Document();
-                            relation.put("sourceLabel",rela.get("sourceLabel", String.class));
-                            relation.put("sourceObjId",rela.get("sourceObjId", String.class));
-                            relation.put("sourcePropertyName",rela.get("sourceObjId", String.class));
+                            relation.put("targetPropertyName",key);
+                            relation.put("targetObjId",id);
+                            relation.put("targetRegionType",type);
+                            String sourcePropertyName = rela.get("sourcePropertyName", String.class);
+                            if(stringDocumentMap.get(sourcePropertyName)==null){
+                                stringDocumentMap.put(sourcePropertyName,new ArrayList<>());
+                            }
+                            List<Document> documents = stringDocumentMap.get(sourcePropertyName);
+                            documents.add(relation);
                             RegionInstanceModel example = new RegionInstanceModel();
                             example.setInstanceId(instanceId);
                             example.setRegionId(rela.get("sourceObjId", String.class));
