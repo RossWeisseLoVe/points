@@ -11,6 +11,7 @@ import com.dragon.flow.service.calculate.*;
 import com.dragon.flow.vo.calculate.BatchNewGhostVo;
 import com.dragon.flow.vo.calculate.CalculateParamVo;
 import com.dragon.flow.vo.calculate.GhostItem;
+import com.dragon.flow.vo.calculate.GhostVo;
 import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.vo.ReturnVo;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -53,6 +54,9 @@ public class CalculateServiceImpl implements CalculateService {
 
     @Autowired
     private RegionInstanceRepository regionInstanceRepository;
+
+    @Autowired
+    private RegionInstanceRepositoryImpl regionInstanceRepositoryImpl;
 
     @Override
     public CalculateModel getModelById(String id) {
@@ -233,9 +237,6 @@ public class CalculateServiceImpl implements CalculateService {
         String regionId = param.getRegionId();
         String instanceId = param.getInstanceId();
         //得到了模型中该计算域的信息，包括relationIn和Out
-        RegionModel region = regionRepository.findById(regionId).get();
-        //区分是自定义计算域还是聚合器等
-        String type = region.getInfo().getType();
         //需要提供信息给对方的邻居节点
         //动态类map
         Map<String, Class<?>> clazzMap = kieUtilClass.getClassMap();
@@ -284,6 +285,7 @@ public class CalculateServiceImpl implements CalculateService {
 //            regionInstanceModel.setRegionId(regionId);
             regionInstanceModelFromMongo = regionInstanceRepository.findById(param.getRegionInstanceId()).get();
             Document dataFromMongo = regionInstanceModelFromMongo.getData();
+            String type = regionInstanceModelFromMongo.getType();
             System.out.println("type==================="+type);
             //如果当前计算域为聚合器，则进入聚合器的计算流程
             if(type.equals("Aggregators")){
@@ -487,53 +489,63 @@ public class CalculateServiceImpl implements CalculateService {
     }
 
     @Override
-    public void setGhostInstance(List<BatchNewGhostVo> items) {
+    public void setGhostInstance(GhostVo param) {
+        List<BatchNewGhostVo> items = param.getItems();
+        String instanceId = param.getInstanceId();
+        String regionType = param.getRegionType();
+        String regionInstanceId = param.getId();
+        RegionInstanceModel targetAgg = regionInstanceRepository.findById(regionInstanceId).get();
         List<RegionInstanceModel> regionInstanceModelList = new ArrayList<>();
         //这个是为了找到所有source的准备
-        List<RegionInstanceModel> sourceRegionInstanceModelExamples = new ArrayList<>();
+        List<Example<RegionInstanceModel>> sourceRegionInstanceModelExamples = new ArrayList<>();
         Map<String, Map<String, List<Document>>> relationInMap = new HashMap<>();
+        Set<String> ghostRegionIds = new HashSet<>();
+        ArrayList<Document> relationOutList = new ArrayList<>();
         items.forEach(item->{
-            String instanceId = item.getInstanceId();
-            String regionType = item.getRegionType();
             List<GhostItem> sourceRegions = item.getSourceRegions();
             sourceRegions.forEach(ghost->{
                 RegionModel region = ghost.getRegion();
                 Integer count = ghost.getCount();
                 //构建一下给目标的relationIn
                 Document relationIn = region.getRelationIn();
+                Document relationOut = region.getRelationOut();
                 String id = region.getId();
+                ghostRegionIds.add(id);
                 String type = region.getInfo().getType();
-                if(!relationIn.isEmpty()){
+                List<Document> exampleRelations = new ArrayList<>();
+                if(relationIn!=null&&!relationIn.isEmpty()){
                     for (Map.Entry<String, Object> entry : relationIn.entrySet()) {
                         String key = entry.getKey();
-                        List<Document> value = (List<Document>) entry.getValue();
+                        ArrayList<LinkedHashMap<String, String>> value = (ArrayList<LinkedHashMap<String,String>>) entry.getValue();
                         value.forEach(rela->{
-                            String sourceObjId = rela.get("sourceObjId", String.class);
-                            if(relationInMap.get(sourceObjId)==null){
-                                Map<String, List<Document>> stringDocumentMap = new HashMap<>();
-                                relationInMap.put(sourceObjId,stringDocumentMap);
-                            }
-                            Map<String, List<Document>> stringDocumentMap = relationInMap.get(sourceObjId);
-
                             Document relation = new Document();
                             relation.put("targetPropertyName",key);
-                            relation.put("targetObjId",id);
                             relation.put("targetRegionType",type);
-                            String sourcePropertyName = rela.get("sourcePropertyName", String.class);
-                            if(stringDocumentMap.get(sourcePropertyName)==null){
-                                stringDocumentMap.put(sourcePropertyName,new ArrayList<>());
-                            }
-                            List<Document> documents = stringDocumentMap.get(sourcePropertyName);
-                            documents.add(relation);
+                            relation.put("sourcePropertyName",rela.get("sourcePropertyName"));
+                            relation.put("sourceObjId",rela.get("sourceObjId"));
+                            relation.put("sourceRegionType",rela.get("sourceRegionType"));
+                            exampleRelations.add(relation);
                             RegionInstanceModel example = new RegionInstanceModel();
                             example.setInstanceId(instanceId);
-                            example.setRegionId(rela.get("sourceObjId", String.class));
-                            sourceRegionInstanceModelExamples.add(example);
+                            example.setRegionId(rela.get("sourceObjId"));
+                            Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(example);
+                            sourceRegionInstanceModelExamples.add(regionInstanceModelExampleexample);
+                        });
+                    }
+                }
+                if(relationOut!=null&&!relationOut.isEmpty()){
+                    for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
+                        String key = entry.getKey();
+                        ArrayList<LinkedHashMap<String, String>> value = (ArrayList<LinkedHashMap<String,String>>) entry.getValue();
+                        value.forEach(rela->{
+                            Document relation = new Document();
+                            relation.put("sourcePropertyName",key);
+                            relation.put("sourceRegionType",type);
+                            relationOutList.add(relation);
                         });
                     }
                 }
                 //直接在这里生成要写入源头的relation
-                Map<String, Document> regionIdRelationMap = new HashMap<>();
                 for (int i = 0; i < count; i++) {
                     RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
                     regionInstanceModel.setInstanceId(instanceId);
@@ -545,10 +557,33 @@ public class CalculateServiceImpl implements CalculateService {
                     regionInstanceModel.setProperties(region.getInfo().getProperties());
                     regionInstanceModel.setDescription(region.getInfo().getDescription());
                     regionInstanceModel.setType(region.getInfo().getType());
-                    Document relation = new Document();
-                    relation.put("targetObjId",uuid);
-                    relation.put("targetRegionType",region.getInfo().getType());
-                    regionIdRelationMap.put(uuid,relation);
+                    relationOutList.forEach(rela->{
+                        rela.put("sourceObjId",uuid);
+                        AggregatorsType1 aggregatorsType1 = AggregatorsType1.fromDocument(targetAgg.getData());
+                        aggregatorsType1.getDataMap().put(uuid,null);
+                        Document document = aggregatorsType1.toDocument();
+                        targetAgg.setData(document);
+                    });
+                    exampleRelations.forEach(rela->{
+                        String sourceObjId = rela.get("sourceObjId",String.class);
+                        if(relationInMap.get(sourceObjId)==null){
+                            Map<String, List<Document>> stringDocumentMap = new HashMap<>();
+                            relationInMap.put(sourceObjId,stringDocumentMap);
+                        }
+                        Map<String, List<Document>> stringDocumentMap = relationInMap.get(sourceObjId);
+                        Document singleRelationOut = new Document();
+                        String sourcePropertyName = rela.getString("sourcePropertyName");
+
+                        singleRelationOut.put("targetPropertyName",rela.getString("targetPropertyName"));
+                        singleRelationOut.put("targetRegionType",rela.getString("targetRegionType"));
+                        singleRelationOut.put("targetObjId",uuid);
+
+                        if(stringDocumentMap.get(sourcePropertyName)==null){
+                            stringDocumentMap.put(sourcePropertyName,new ArrayList<>());
+                        }
+                        List<Document> documents = stringDocumentMap.get(sourcePropertyName);
+                        documents.add(singleRelationOut);
+                    });
                     try {
                         Map<String, Class<?>> classMap = kieUtilClass.getClassMap();
                         Class<?> aClass = classMap.get(region.getInfo().getClassName());
@@ -567,14 +602,61 @@ public class CalculateServiceImpl implements CalculateService {
                     }
                     regionInstanceModelList.add(regionInstanceModel);
                 }
-
-                Document relationOut = region.getRelationOut();
-                if(!relationOut.isEmpty()){
-
-
-                }
             });
         });
+        AggregatorsType1 agg = AggregatorsType1.fromDocument(targetAgg.getData());
+        Document dataMap = agg.getDataMap();
+        ghostRegionIds.forEach(item->{
+            dataMap.remove(item);
+        });
+        Document document = agg.toDocument();
+        targetAgg.setData(document);
+        List<RegionInstanceModel> regionInstanceModelsByCriteria = regionInstanceRepositoryImpl.findRegionInstanceModelsByCriteria(sourceRegionInstanceModelExamples);
+        regionInstanceModelsByCriteria.forEach(regionInstance->{
+            String regionId = regionInstance.getRegionId();
+            Document relationOut = regionInstance.getRelationOut();
+            Map<String, List<Document>> stringListMap = relationInMap.get(regionId);
+            for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
+                String key = entry.getKey();
+                ArrayList<Document> value = (ArrayList<Document>) entry.getValue();
+                //需要把幽灵的删去
+                //需要看看是否该项已经有值，有值的话要直接写进去
+                List<Document> realRelations = new ArrayList<>();
+                value.forEach(item->{
+                    if(!ghostRegionIds.contains(item.getString("targetObjId"))){
+                        realRelations.add(item);
+                    }
+                });
+                List<Document> documents = stringListMap.get(key);
+                realRelations.addAll(documents);
+                relationOut.put(key,realRelations);
+            }
+        });
+        Document relationIn = targetAgg.getRelationIn();
+        for (Map.Entry<String, Object> entry : relationIn.entrySet()) {
+            String key = entry.getKey();
+            ArrayList<Document> value = (ArrayList<Document>) entry.getValue();
+            if(key.equals("list")){
+                List<Document> realRelations = new ArrayList<>();
+                value.forEach(item->{
+                    if(!ghostRegionIds.contains(item.getString("sourceObjId"))){
+                        realRelations.add(item);
+                    }
+                });
+                realRelations.addAll(relationOutList);
+                relationIn.put(key,realRelations);
+            }
+        }
+        regionInstanceModelList.addAll(regionInstanceModelsByCriteria);
+        regionInstanceModelList.add(targetAgg);
         regionInstanceRepository.saveAll(regionInstanceModelList);
+        regionInstanceModelsByCriteria.forEach(item->{
+            if(item.getRelationOut()!=null){
+                CalculateParamVo calculateParamVo = new CalculateParamVo();
+                calculateParamVo.setInstanceId(item.getInstanceId());
+                calculateParamVo.setRegionId(item.getRegionId());
+                this.sendNewTask(item.getRelationOut(),item,calculateParamVo);
+            }
+        });
     }
 }

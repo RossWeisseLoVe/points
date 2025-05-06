@@ -4,6 +4,7 @@ import com.dragon.flow.model.calculate.CalculateModel;
 import com.dragon.flow.model.calculate.InstanceModel;
 import com.dragon.flow.vo.calculate.BatchNewGhostVo;
 import com.dragon.flow.vo.calculate.CalculateParamVo;
+import com.dragon.flow.vo.calculate.GhostVo;
 import com.dragon.tools.vo.ReturnVo;
 import org.bson.Document;
 
@@ -19,6 +20,6 @@ public interface CalculateService {
 
     public void callSetterMethod(Object obj, String propertyName,Object fieldValue);
 
-    public void setGhostInstance(List<BatchNewGhostVo> items);
+    public void setGhostInstance(GhostVo param);
 
 }

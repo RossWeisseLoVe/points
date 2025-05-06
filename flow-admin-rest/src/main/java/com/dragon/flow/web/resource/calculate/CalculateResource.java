@@ -10,6 +10,7 @@ import com.dragon.flow.service.calculate.*;
 import com.dragon.flow.service.calculate.impl.InstanceImpl;
 import com.dragon.flow.vo.calculate.BatchNewGhostVo;
 import com.dragon.flow.vo.calculate.CalculateParamVo;
+import com.dragon.flow.vo.calculate.GhostVo;
 import com.dragon.flow.vo.pager.ParamVo;
 import com.dragon.tools.common.ReturnCode;
 import com.dragon.tools.vo.ReturnVo;
@@ -223,11 +224,8 @@ public class CalculateResource {
     }
 
     @PostMapping("setGhostInstance")
-    public ReturnVo setGhostInstance(@RequestBody List<BatchNewGhostVo> items){
-        calculateService.setGhostInstance(items);
-        items.forEach(item->{
-            System.out.println("=========="+item.toString());
-        });
+    public ReturnVo setGhostInstance(@RequestBody GhostVo param){
+        calculateService.setGhostInstance(param);
         return new ReturnVo(ReturnCode.SUCCESS,"新增成功",null);
     }
 
