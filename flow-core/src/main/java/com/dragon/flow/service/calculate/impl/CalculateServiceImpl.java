@@ -94,13 +94,22 @@ public class CalculateServiceImpl implements CalculateService {
                 Document relation = new Document();
                 for (Map.Entry<String, Object> entry : relationOutForInstance.entrySet()) {
                     String key = entry.getKey();
-                    List<Document> value = (List<Document>) entry.getValue();
+                    List value = (List) entry.getValue();
+                    List<Document> documents = new ArrayList<>();
                     value.forEach(rela->{
-                        rela.put("fatherInstanceId",fatherInstanceId);
+                        if(rela instanceof LinkedHashMap){
+                            Document document = new Document((Map<String, Object>) rela);
+                            document.put("fatherInstanceId",fatherInstanceId);
+                            documents.add(document);
+                        }else{
+                            Document document = (Document) rela;
+                            document.put("fatherInstanceId",fatherInstanceId);
+                            documents.add(document);
+                        }
                     });
                     String[] s = key.split("_");
                     if(s[1].equals(item.getId())){
-                        relation.put(key,value);
+                        relation.put(key,documents);
                     }
                 }
                 if(relation.isEmpty()){
@@ -113,10 +122,14 @@ public class CalculateServiceImpl implements CalculateService {
                 Document relation = new Document();
                 for (Map.Entry<String, Object> entry : relationInForInstance.entrySet()) {
                     String key = entry.getKey();
-                    List<Document> value = (List<Document>) entry.getValue();
-//                    value.forEach(rela->{
-//                        rela.put("fatherInstanceId",fatherInstanceId);
-//                    });
+                    List<Document> value = null;
+                    if(entry.getValue() instanceof LinkedHashMap){
+                        Document document = new Document((Map<String, Object>) entry.getValue());
+                        value = (List<Document>) document;
+
+                    }else{
+                        value = (List<Document>) entry.getValue();
+                    }
                     String[] s = key.split("_");
                     if(s[1].equals(item.getId())){
                         relation.put(key,value);
@@ -495,7 +508,9 @@ public class CalculateServiceImpl implements CalculateService {
         String instanceId = param.getInstanceId();
         String regionType = param.getRegionType();
         String regionInstanceId = param.getId();
+        Map<String, Class<?>> classMap = kieUtilClass.getClassMap();
         RegionInstanceModel targetAgg = regionInstanceRepository.findById(regionInstanceId).get();
+        InstanceModel instanceModel = instanceRepository.findById(instanceId).get();
         List<RegionInstanceModel> regionInstanceModelList = new ArrayList<>();
         //这个是为了找到所有source的准备
         List<Example<RegionInstanceModel>> sourceRegionInstanceModelExamples = new ArrayList<>();
@@ -584,21 +599,69 @@ public class CalculateServiceImpl implements CalculateService {
                         List<Document> documents = stringDocumentMap.get(sourcePropertyName);
                         documents.add(singleRelationOut);
                     });
-                    try {
-                        Map<String, Class<?>> classMap = kieUtilClass.getClassMap();
-                        Class<?> aClass = classMap.get(region.getInfo().getClassName());
-                        Object data = aClass.newInstance();
-                        Document document = new Document();
-                        for (Field field : aClass.getDeclaredFields()) {
-                            field.setAccessible(true); // 强制访问私有字段
-                            Object value = field.get(data);
-                            document.put(field.getName(), value);
+                    if(type.equals("othermodel")){
+                        //需要先生成实例到Instance中
+                        //如果当前region是嵌套计算域，则递归生成实例
+                        String uuid2 = UUID.randomUUID().toString();
+                        InstanceModel nestingInstanceModel = new InstanceModel();
+                        nestingInstanceModel.setModelId(region.getInfo().getSourceModelId());
+                        nestingInstanceModel.setName(region.getInfo().getClassName());
+                        nestingInstanceModel.setDescription(instanceModel.getName()+"的子计算域");
+                        nestingInstanceModel.setFid(instanceId);
+                        nestingInstanceModel.setLevel(instanceModel.getLevel()+1);
+                        nestingInstanceModel.setPath(instanceModel.getPath() == null ?
+                                instanceId : instanceModel.getPath() + "," + instanceId);
+                        //以下两句代码的意义是：将regionInstance表中的嵌套模型实例与其每个计算域实例关联起来
+                        nestingInstanceModel.setId(uuid2);
+                        nestingInstanceModel.setType("othermodel");
+                        regionInstanceModel.setId(uuid2);
+                        try {
+                            newInstance(nestingInstanceModel,true,region.getRelationOut(),region.getRelationIn(),instanceId);
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
-                        regionInstanceModel.setData(document);
-                    } catch (InstantiationException e) {
-                        e.printStackTrace();
-                    } catch (IllegalAccessException e) {
-                        e.printStackTrace();
+                    }else if(type.equals("Aggregators")){
+                        //如果该计算域为聚合器的话
+                        String className = region.getInfo().getClassName();
+                        if(className.equals("com.dragon.flow.model.aggregators.Average")){
+                            AggregatorsType1 aggregatorsType1 = new AggregatorsType1();
+                            Document stringDocumentMap = new Document();
+                            if(regionInstanceModel.getRelationIn()!=null){
+                                for (Map.Entry<String, Object> entry : regionInstanceModel.getRelationIn().entrySet()) {
+                                    String key = entry.getKey();
+                                    List<Document> value = (List<Document>) entry.getValue();
+                                    String[] s = key.split("_");
+                                    if(s[0].equals("list")){
+                                        value.forEach(relation->{
+                                            String sourceObjId = (String) relation.get("sourceObjId");
+                                            stringDocumentMap.put(sourceObjId,null);
+                                        });
+                                    }
+                                }
+                            }
+                            aggregatorsType1.setDataMap(stringDocumentMap);
+                            aggregatorsType1.setDataType("Double");
+                            aggregatorsType1.setResult(null);
+                            Document document = aggregatorsType1.toDocument();
+                            regionInstanceModel.setData(document);
+                        }
+                        //根据不同的className执行不同的方法
+                    }else{
+                        try {
+                            Class<?> aClass = classMap.get(region.getInfo().getClassName());
+                            Object data = aClass.newInstance();
+                            Document document = new Document();
+                            for (Field field : aClass.getDeclaredFields()) {
+                                field.setAccessible(true); // 强制访问私有字段
+                                Object value = field.get(data);
+                                document.put(field.getName(), value);
+                            }
+                            regionInstanceModel.setData(document);
+                        } catch (InstantiationException e) {
+                            e.printStackTrace();
+                        } catch (IllegalAccessException e) {
+                            e.printStackTrace();
+                        }
                     }
                     regionInstanceModelList.add(regionInstanceModel);
                 }
@@ -615,36 +678,40 @@ public class CalculateServiceImpl implements CalculateService {
         regionInstanceModelsByCriteria.forEach(regionInstance->{
             String regionId = regionInstance.getRegionId();
             Document relationOut = regionInstance.getRelationOut();
-            Map<String, List<Document>> stringListMap = relationInMap.get(regionId);
-            for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
-                String key = entry.getKey();
-                ArrayList<Document> value = (ArrayList<Document>) entry.getValue();
-                //需要把幽灵的删去
-                //需要看看是否该项已经有值，有值的话要直接写进去
-                List<Document> realRelations = new ArrayList<>();
-                value.forEach(item->{
-                    if(!ghostRegionIds.contains(item.getString("targetObjId"))){
-                        realRelations.add(item);
-                    }
-                });
-                List<Document> documents = stringListMap.get(key);
-                realRelations.addAll(documents);
-                relationOut.put(key,realRelations);
+            if(relationOut!=null){
+                Map<String, List<Document>> stringListMap = relationInMap.get(regionId);
+                for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
+                    String key = entry.getKey();
+                    ArrayList<Document> value = (ArrayList<Document>) entry.getValue();
+                    //需要把幽灵的删去
+                    //需要看看是否该项已经有值，有值的话要直接写进去
+                    List<Document> realRelations = new ArrayList<>();
+                    value.forEach(item->{
+                        if(!ghostRegionIds.contains(item.getString("targetObjId"))){
+                            realRelations.add(item);
+                        }
+                    });
+                    List<Document> documents = stringListMap.get(key);
+                    realRelations.addAll(documents);
+                    relationOut.put(key,realRelations);
+                }
             }
         });
         Document relationIn = targetAgg.getRelationIn();
-        for (Map.Entry<String, Object> entry : relationIn.entrySet()) {
-            String key = entry.getKey();
-            ArrayList<Document> value = (ArrayList<Document>) entry.getValue();
-            if(key.equals("list")){
-                List<Document> realRelations = new ArrayList<>();
-                value.forEach(item->{
-                    if(!ghostRegionIds.contains(item.getString("sourceObjId"))){
-                        realRelations.add(item);
-                    }
-                });
-                realRelations.addAll(relationOutList);
-                relationIn.put(key,realRelations);
+        if(relationIn!=null){
+            for (Map.Entry<String, Object> entry : relationIn.entrySet()) {
+                String key = entry.getKey();
+                ArrayList<Document> value = (ArrayList<Document>) entry.getValue();
+                if(key.equals("list")){
+                    List<Document> realRelations = new ArrayList<>();
+                    value.forEach(item->{
+                        if(!ghostRegionIds.contains(item.getString("sourceObjId"))){
+                            realRelations.add(item);
+                        }
+                    });
+                    realRelations.addAll(relationOutList);
+                    relationIn.put(key,realRelations);
+                }
             }
         }
         regionInstanceModelList.addAll(regionInstanceModelsByCriteria);
