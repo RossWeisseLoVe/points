@@ -33,6 +33,8 @@ public class RegionInstanceModel extends BaseModel {
 
     private org.bson.Document relationIn;
 
+    private org.bson.Document ghostRelationIn;
+
     private org.bson.Document relationOut;
 
     private org.bson.Document data;

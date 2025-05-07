@@ -85,6 +85,7 @@ public class CalculateServiceImpl implements CalculateService {
             regionInstanceModel.setRegionId(item.getId());
             regionInstanceModel.setClassName(item.getInfo().getClassName());
             regionInstanceModel.setRelationIn(item.getRelationIn());
+            regionInstanceModel.setGhostRelationIn(item.getRelationIn());  //用于幽灵Region
             regionInstanceModel.setRelationOut(item.getRelationOut());
             regionInstanceModel.setProperties(item.getInfo().getProperties());
             regionInstanceModel.setDescription(item.getInfo().getDescription());
@@ -545,7 +546,6 @@ public class CalculateServiceImpl implements CalculateService {
                         });
                     }
                 }
-                //直接在这里生成要写入源头的relation
                 for (int i = 0; i < count; i++) {
                     RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
                     regionInstanceModel.setInstanceId(instanceId);
