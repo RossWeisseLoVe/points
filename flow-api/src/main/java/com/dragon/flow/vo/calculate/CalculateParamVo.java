@@ -28,5 +28,11 @@ public class CalculateParamVo {
     //计算域实例id
     private String regionInstanceId;
 
+    //数据来源的类型
+    private String sourceRegionType;
+
+    //数据来源的父RegionId
+    private String sourceFatherRegionId;
+
 
 }

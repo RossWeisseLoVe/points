@@ -8,6 +8,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -17,6 +18,9 @@ public class RegionInstanceRepositoryImpl{
     private final MongoTemplate mongoTemplate;
 
     public List<RegionInstanceModel> findRegionInstanceModelsByCriteria(List<Example<RegionInstanceModel>> examples) {
+        if(examples.size()==0){
+            return new ArrayList<RegionInstanceModel>();
+        }
         Criteria criteria = new Criteria();
         for (Example<RegionInstanceModel> example : examples) {
             criteria.orOperator(Criteria.byExample(example)); // OR 连接

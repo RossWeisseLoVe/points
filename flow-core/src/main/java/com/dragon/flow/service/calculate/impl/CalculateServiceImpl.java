@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.beanutils.BeanUtils;
 import org.bson.Document;
+import org.jetbrains.annotations.NotNull;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,7 +69,7 @@ public class CalculateServiceImpl implements CalculateService {
 
     @Override
     @Transactional
-    public InstanceModel newInstance(InstanceModel instanceModel,Boolean isOtherModel,Document relationOutForInstance,Document relationInForInstance,String fatherInstanceId) throws Exception{
+    public InstanceModel newInstance(InstanceModel instanceModel,Boolean isOtherModel,Document relationOutForInstance,Document relationInForInstance,String fatherInstanceId,String fatherRegionId) throws Exception{
         String modelId = instanceModel.getModelId();
         InstanceModel save = instanceRepository.save(instanceModel);
         String id = save.getId();
@@ -100,10 +101,12 @@ public class CalculateServiceImpl implements CalculateService {
                         if(rela instanceof LinkedHashMap){
                             Document document = new Document((Map<String, Object>) rela);
                             document.put("fatherInstanceId",fatherInstanceId);
+                            document.put("sourceFatherRegionId",fatherRegionId);
                             documents.add(document);
                         }else{
                             Document document = (Document) rela;
                             document.put("fatherInstanceId",fatherInstanceId);
+                            document.put("sourceFatherRegionId",fatherRegionId);
                             documents.add(document);
                         }
                     });
@@ -158,7 +161,7 @@ public class CalculateServiceImpl implements CalculateService {
                 nestingInstanceModel.setType("othermodel");
                 regionInstanceModel.setId(uuid);
                 try {
-                    newInstance(nestingInstanceModel,true,item.getRelationOut(),item.getRelationIn(),id);
+                    newInstance(nestingInstanceModel,true,item.getRelationOut(),item.getRelationIn(),id,item.getId());
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -175,8 +178,13 @@ public class CalculateServiceImpl implements CalculateService {
                             String[] s = key.split("_");
                             if(s[0].equals("list")){
                                 value.forEach(relation->{
-                                    String sourceObjId = (String) relation.get("sourceObjId");
-                                    stringDocumentMap.put(sourceObjId,null);
+                                    String sourceObjId = relation.getString("sourceObjId");
+                                    String sourceRegionType = relation.getString("sourceRegionType");
+                                    if(sourceRegionType.equals("othermodel")){
+                                        stringDocumentMap.put(relation.getString("sourceFatherRegionId")+"_"+sourceObjId,null);
+                                    }else{
+                                        stringDocumentMap.put(sourceObjId,null);
+                                    }
                                 });
                             }
                         }
@@ -221,7 +229,12 @@ public class CalculateServiceImpl implements CalculateService {
             Document dataMap = aggregatorsType1.getDataMap();
             Document param = (Document) paramVo.getParam();
             System.out.println("========================================"+param.get("list"));
-            dataMap.put(paramVo.getSourceId(), param.get("list"));
+            //此处要注意othermodel情况下，要用父regionId和真regionId一起定位
+            if(paramVo.getSourceRegionType().equals("othermodel")){
+                dataMap.put(paramVo.getSourceFatherRegionId()+"_"+paramVo.getSourceId(), param.get("list"));
+            }else{
+                dataMap.put(paramVo.getSourceId(), param.get("list"));
+            }
             AtomicBoolean flag = new AtomicBoolean(true);
             dataMap.forEach((key,value)->{
                 if(value==null){
@@ -378,7 +391,7 @@ public class CalculateServiceImpl implements CalculateService {
         return returnVo;
     }
 
-    private void sendNewTask(Document relationOut,RegionInstanceModel regionInstanceModelFromMongo,CalculateParamVo paramVo){
+    private void sendNewTask(@NotNull Document relationOut, RegionInstanceModel regionInstanceModelFromMongo, CalculateParamVo paramVo){
         final Lock lock = new ReentrantLock();
         String regionId = paramVo.getRegionId();
         String instanceId = paramVo.getInstanceId();
@@ -394,6 +407,7 @@ public class CalculateServiceImpl implements CalculateService {
                 String targetPropertyName = item.get("targetPropertyName",String.class);
                 String fatherInstanceId = item.get("fatherInstanceId", String.class);
                 String targetFatherRegionId = item.get("targetFatherRegionId",String.class);
+                String sourceFatherRegionId = item.getString("sourceFatherRegionId");
                 RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
                 //传递给下次计算的参数
                 CalculateParamVo calculateParamVo = new CalculateParamVo();
@@ -411,6 +425,8 @@ public class CalculateServiceImpl implements CalculateService {
                     regionInstanceModel.setRegionId(targetObjId);
                     String[] s = key.split("_");
                     dataValue = regionInstanceModelFromMongo.getData().get(s[0]);
+                    calculateParamVo.setSourceRegionType("othermodel");
+                    calculateParamVo.setSourceFatherRegionId(sourceFatherRegionId);
                 }else if(targetRegionType.equals("othermodel")&&fatherInstanceId==null){
                     //U2O
                     RegionInstanceModel queryModel = new RegionInstanceModel();
@@ -422,12 +438,15 @@ public class CalculateServiceImpl implements CalculateService {
                     regionInstanceModel.setInstanceId(fid);
                     regionInstanceModel.setRegionId(targetObjId);
                     dataValue = regionInstanceModelFromMongo.getData().get(key);
+                    calculateParamVo.setSourceRegionType("box");
                 }else if((!targetRegionType.equals("othermodel"))&&fatherInstanceId!=null){
                     //O2U
                     regionInstanceModel.setInstanceId(fatherInstanceId);
                     regionInstanceModel.setRegionId(targetObjId);
                     String[] s = key.split("_");
                     dataValue = regionInstanceModelFromMongo.getData().get(s[0]);
+                    calculateParamVo.setSourceRegionType("othermodel");
+                    calculateParamVo.setSourceFatherRegionId(sourceFatherRegionId);
                 }else{
                     //U2U
                     regionInstanceModel.setInstanceId(instanceId);
@@ -438,6 +457,7 @@ public class CalculateServiceImpl implements CalculateService {
                     }else{
                         dataValue = regionInstanceModelFromMongo.getData().get(key);
                     }
+                    calculateParamVo.setSourceRegionType("box");
                 }
                 if(dataValue==null){
                     return;
@@ -506,7 +526,6 @@ public class CalculateServiceImpl implements CalculateService {
     public void setGhostInstance(GhostVo param) {
         List<BatchNewGhostVo> items = param.getItems();
         String instanceId = param.getInstanceId();
-        String regionType = param.getRegionType();
         String regionInstanceId = param.getId();
         Map<String, Class<?>> classMap = kieUtilClass.getClassMap();
         RegionInstanceModel targetAgg = regionInstanceRepository.findById(regionInstanceId).get();
@@ -517,8 +536,10 @@ public class CalculateServiceImpl implements CalculateService {
         Map<String, Map<String, List<Document>>> relationInMap = new HashMap<>();
         Set<String> ghostRegionIds = new HashSet<>();
         ArrayList<Document> relationOutList = new ArrayList<>();
+        ArrayList<Document> finalRelationOutList = new ArrayList<>();
         items.forEach(item->{
             List<GhostItem> sourceRegions = item.getSourceRegions();
+            //构建所有的relations为一个map套map
             sourceRegions.forEach(ghost->{
                 RegionModel region = ghost.getRegion();
                 Integer count = ghost.getCount();
@@ -541,6 +562,7 @@ public class CalculateServiceImpl implements CalculateService {
                             relation.put("sourceObjId",rela.get("sourceObjId"));
                             relation.put("sourceRegionType",rela.get("sourceRegionType"));
                             exampleRelations.add(relation);
+                            //构建查询所有给幽灵Region提供值的regionInstance
                             RegionInstanceModel example = new RegionInstanceModel();
                             example.setInstanceId(instanceId);
                             example.setRegionId(rela.get("sourceObjId"));
@@ -549,18 +571,36 @@ public class CalculateServiceImpl implements CalculateService {
                         });
                     }
                 }
+                //构建所有的对聚合器的relation
                 if(relationOut!=null&&!relationOut.isEmpty()){
-                    for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
-                        String key = entry.getKey();
-                        ArrayList<LinkedHashMap<String, String>> value = (ArrayList<LinkedHashMap<String,String>>) entry.getValue();
-                        value.forEach(rela->{
-                            Document relation = new Document();
-                            relation.put("sourcePropertyName",key);
-                            relation.put("sourceRegionType",type);
-                            relationOutList.add(relation);
-                        });
+                    //如果是非othermodel
+                    if(type.equals("othermodel")){
+                        for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
+                            String key = entry.getKey();
+                            String[] s = key.split("_");
+                            ArrayList<LinkedHashMap<String, String>> value = (ArrayList<LinkedHashMap<String,String>>) entry.getValue();
+                            value.forEach(rela->{
+                                Document relation = new Document();
+                                relation.put("sourcePropertyName",s[0]);
+                                relation.put("sourceObjId",s[1]);
+                                relation.put("sourceRegionType",type);
+                                relationOutList.add(relation);
+                            });
+                        }
+                    }else{
+                        for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
+                            String key = entry.getKey();
+                            ArrayList<LinkedHashMap<String, String>> value = (ArrayList<LinkedHashMap<String,String>>) entry.getValue();
+                            value.forEach(rela->{
+                                Document relation = new Document();
+                                relation.put("sourcePropertyName",key);
+                                relation.put("sourceRegionType",type);
+                                relationOutList.add(relation);
+                            });
+                        }
                     }
                 }
+                //根据count和region信息创建所有的幽灵region
                 for (int i = 0; i < count; i++) {
                     RegionInstanceModel regionInstanceModel = new RegionInstanceModel();
                     regionInstanceModel.setInstanceId(instanceId);
@@ -572,15 +612,38 @@ public class CalculateServiceImpl implements CalculateService {
                     regionInstanceModel.setProperties(region.getInfo().getProperties());
                     regionInstanceModel.setDescription(region.getInfo().getDescription());
                     regionInstanceModel.setType(region.getInfo().getType());
-                    relationOutList.forEach(rela->{
-                        rela.put("sourceObjId",uuid);
-                        AggregatorsType1 aggregatorsType1 = AggregatorsType1.fromDocument(targetAgg.getData());
-                        aggregatorsType1.getDataMap().put(uuid,null);
-                        Document document = aggregatorsType1.toDocument();
-                        targetAgg.setData(document);
-                    });
+                    //给聚合器设置数据datamap
+                    if(type.equals("othermodel")){
+                        relationOutList.forEach(rela->{
+                            AggregatorsType1 aggregatorsType1 = AggregatorsType1.fromDocument(targetAgg.getData());
+                            aggregatorsType1.getDataMap().put(uuid+"_"+rela.get("sourceObjId"),null);
+                            Document document = aggregatorsType1.toDocument();
+                            targetAgg.setData(document);
+                            Document relation = new Document();
+                            relation.put("sourceFatherRegionId",uuid);
+                            relation.put("sourceObjId",rela.getString("sourceObjId"));
+                            relation.put("sourcePropertyName",rela.getString("sourcePropertyName"));
+                            relation.put("sourceRegionType",rela.getString("sourceRegionType"));
+                            finalRelationOutList.add(relation);
+                        });
+                    }else{
+                        relationOutList.forEach(rela->{
+                            AggregatorsType1 aggregatorsType1 = AggregatorsType1.fromDocument(targetAgg.getData());
+                            aggregatorsType1.getDataMap().put(uuid,null);
+                            Document document = aggregatorsType1.toDocument();
+                            targetAgg.setData(document);
+                            finalRelationOutList.add(rela);
+                            Document relation = new Document();
+                            relation.put("sourceFatherRegionId",uuid);
+                            relation.put("sourceObjId",rela.getString("sourceObjId"));
+                            relation.put("sourcePropertyName",rela.getString("sourcePropertyName"));
+                            relation.put("sourceRegionType",rela.getString("sourceRegionType"));
+                            finalRelationOutList.add(relation);
+                        });
+                    }
+                    //构建relationmap的第二层
                     exampleRelations.forEach(rela->{
-                        String sourceObjId = rela.get("sourceObjId",String.class);
+                        String sourceObjId = rela.getString("sourceObjId");
                         if(relationInMap.get(sourceObjId)==null){
                             Map<String, List<Document>> stringDocumentMap = new HashMap<>();
                             relationInMap.put(sourceObjId,stringDocumentMap);
@@ -599,6 +662,7 @@ public class CalculateServiceImpl implements CalculateService {
                         List<Document> documents = stringDocumentMap.get(sourcePropertyName);
                         documents.add(singleRelationOut);
                     });
+                    // 给幽灵Region的实例设置数据，如果是othermodel，也要为其递归生成实例
                     if(type.equals("othermodel")){
                         //需要先生成实例到Instance中
                         //如果当前region是嵌套计算域，则递归生成实例
@@ -616,7 +680,7 @@ public class CalculateServiceImpl implements CalculateService {
                         nestingInstanceModel.setType("othermodel");
                         regionInstanceModel.setId(uuid2);
                         try {
-                            newInstance(nestingInstanceModel,true,region.getRelationOut(),region.getRelationIn(),instanceId);
+                            newInstance(nestingInstanceModel,true,region.getRelationOut(),region.getRelationIn(),instanceId,uuid);
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
@@ -669,17 +733,23 @@ public class CalculateServiceImpl implements CalculateService {
         });
         AggregatorsType1 agg = AggregatorsType1.fromDocument(targetAgg.getData());
         Document dataMap = agg.getDataMap();
-        ghostRegionIds.forEach(item->{
-            dataMap.remove(item);
-        });
+        if(dataMap!=null){
+            for (Map.Entry<String, Object> entry : dataMap.entrySet()) {
+                String key = entry.getKey();
+                String[] s = key.split("_");
+                if(ghostRegionIds.contains(s[0])){
+                    dataMap.remove(key);
+                }
+            }
+        }
         Document document = agg.toDocument();
         targetAgg.setData(document);
         List<RegionInstanceModel> regionInstanceModelsByCriteria = regionInstanceRepositoryImpl.findRegionInstanceModelsByCriteria(sourceRegionInstanceModelExamples);
         regionInstanceModelsByCriteria.forEach(regionInstance->{
             String regionId = regionInstance.getRegionId();
             Document relationOut = regionInstance.getRelationOut();
-            if(relationOut!=null){
-                Map<String, List<Document>> stringListMap = relationInMap.get(regionId);
+            Map<String, List<Document>> stringListMap = relationInMap.get(regionId);
+            if(relationOut!=null&&stringListMap!=null){
                 for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
                     String key = entry.getKey();
                     ArrayList<Document> value = (ArrayList<Document>) entry.getValue();
@@ -709,7 +779,7 @@ public class CalculateServiceImpl implements CalculateService {
                             realRelations.add(item);
                         }
                     });
-                    realRelations.addAll(relationOutList);
+                    realRelations.addAll(finalRelationOutList);
                     relationIn.put(key,realRelations);
                 }
             }
