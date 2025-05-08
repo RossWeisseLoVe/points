@@ -433,7 +433,8 @@ public class CalculateServiceImpl implements CalculateService {
                     queryModel.setRegionId(targetFatherRegionId);
                     queryModel.setInstanceId(instanceId);
                     Example<RegionInstanceModel> fatherExample = Example.of(queryModel);
-                    RegionInstanceModel fatherRegionInstance = regionInstanceRepository.findOne(fatherExample).get();
+                    Optional<RegionInstanceModel> one = regionInstanceRepository.findOne(fatherExample);
+                    RegionInstanceModel fatherRegionInstance = one.get();
                     String fid = fatherRegionInstance.getId();
                     regionInstanceModel.setInstanceId(fid);
                     regionInstanceModel.setRegionId(targetObjId);
@@ -464,7 +465,6 @@ public class CalculateServiceImpl implements CalculateService {
                 }
                 //该部分作用为找到真正的对象regionInstance
                 Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(regionInstanceModel);
-                //由于加入了幽灵Region的设计，所以以后不能再用
                 RegionInstanceModel realTarget = regionInstanceRepository.findOne(regionInstanceModelExampleexample).get();
                 String className = realTarget.getClassName();
                 calculateParamVo.setTypeName(className);
@@ -556,8 +556,14 @@ public class CalculateServiceImpl implements CalculateService {
                         ArrayList<LinkedHashMap<String, String>> value = (ArrayList<LinkedHashMap<String,String>>) entry.getValue();
                         value.forEach(rela->{
                             Document relation = new Document();
-                            relation.put("targetPropertyName",key);
                             relation.put("targetRegionType",type);
+                            if(type.equals("othermodel")){
+                                String[] s = key.split("_");
+                                relation.put("targetObjId",s[1]);
+                                relation.put("targetPropertyName",s[0]);
+                            }else{
+                                relation.put("targetPropertyName",key);
+                            }
                             relation.put("sourcePropertyName",rela.get("sourcePropertyName"));
                             relation.put("sourceObjId",rela.get("sourceObjId"));
                             relation.put("sourceRegionType",rela.get("sourceRegionType"));
@@ -651,11 +657,15 @@ public class CalculateServiceImpl implements CalculateService {
                         Map<String, List<Document>> stringDocumentMap = relationInMap.get(sourceObjId);
                         Document singleRelationOut = new Document();
                         String sourcePropertyName = rela.getString("sourcePropertyName");
-
+                        String targetRegionType = rela.getString("targetRegionType");
                         singleRelationOut.put("targetPropertyName",rela.getString("targetPropertyName"));
-                        singleRelationOut.put("targetRegionType",rela.getString("targetRegionType"));
-                        singleRelationOut.put("targetObjId",uuid);
-
+                        singleRelationOut.put("targetRegionType",targetRegionType);
+                        if(targetRegionType.equals("othermodel")){
+                            singleRelationOut.put("targetObjId",rela.getString("targetObjId"));
+                            singleRelationOut.put("targetFatherRegionId",uuid);
+                        }else{
+                            singleRelationOut.put("targetObjId",uuid);
+                        }
                         if(stringDocumentMap.get(sourcePropertyName)==null){
                             stringDocumentMap.put(sourcePropertyName,new ArrayList<>());
                         }
@@ -734,16 +744,19 @@ public class CalculateServiceImpl implements CalculateService {
         AggregatorsType1 agg = AggregatorsType1.fromDocument(targetAgg.getData());
         Document dataMap = agg.getDataMap();
         if(dataMap!=null){
+            List<String> toRemove = new ArrayList<>();
             for (Map.Entry<String, Object> entry : dataMap.entrySet()) {
                 String key = entry.getKey();
                 String[] s = key.split("_");
-                if(ghostRegionIds.contains(s[0])){
-                    dataMap.remove(key);
+                if (s.length > 0 && ghostRegionIds != null && ghostRegionIds.contains(s[0])) {
+                    toRemove.add(key);
                 }
             }
+            toRemove.forEach(dataMap::remove);
         }
         Document document = agg.toDocument();
         targetAgg.setData(document);
+        //查出的为幽灵Region供值的
         List<RegionInstanceModel> regionInstanceModelsByCriteria = regionInstanceRepositoryImpl.findRegionInstanceModelsByCriteria(sourceRegionInstanceModelExamples);
         regionInstanceModelsByCriteria.forEach(regionInstance->{
             String regionId = regionInstance.getRegionId();
@@ -757,8 +770,15 @@ public class CalculateServiceImpl implements CalculateService {
                     //需要看看是否该项已经有值，有值的话要直接写进去
                     List<Document> realRelations = new ArrayList<>();
                     value.forEach(item->{
-                        if(!ghostRegionIds.contains(item.getString("targetObjId"))){
-                            realRelations.add(item);
+                        String targetRegionType = item.getString("targetRegionType");
+                        if(targetRegionType.equals("othermodel")){
+                            if(!ghostRegionIds.contains(item.getString("targetFatherRegionId"))){
+                                realRelations.add(item);
+                            }
+                        }else{
+                            if(!ghostRegionIds.contains(item.getString("targetObjId"))){
+                                realRelations.add(item);
+                            }
                         }
                     });
                     List<Document> documents = stringListMap.get(key);

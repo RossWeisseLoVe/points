@@ -9,7 +9,9 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -17,16 +19,24 @@ public class RegionInstanceRepositoryImpl{
 
     private final MongoTemplate mongoTemplate;
 
-    public List<RegionInstanceModel> findRegionInstanceModelsByCriteria(List<Example<RegionInstanceModel>> examples) {
-        if(examples.size()==0){
-            return new ArrayList<RegionInstanceModel>();
+    public List<RegionInstanceModel> findRegionInstanceModelsByCriteria(
+            List<Example<RegionInstanceModel>> examples) {
+
+        if (examples.isEmpty()) {
+            return Collections.emptyList(); // 更简洁的空列表返回方式
         }
-        Criteria criteria = new Criteria();
-        for (Example<RegionInstanceModel> example : examples) {
-            criteria.orOperator(Criteria.byExample(example)); // OR 连接
-        }
-        Query query = new Query(criteria);
-        return mongoTemplate.find(query, RegionInstanceModel.class);
+
+        // 收集所有 Example 转换后的 Criteria
+        List<Criteria> criteriaList = examples.stream()
+                .map(Criteria::byExample)
+                .collect(Collectors.toList());
+
+        // 一次性构建 OR 条件
+        Criteria criteria = new Criteria().orOperator(
+                criteriaList.toArray(new Criteria[0])
+        );
+
+        return mongoTemplate.find(new Query(criteria), RegionInstanceModel.class);
     }
 
 
