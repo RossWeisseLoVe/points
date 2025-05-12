@@ -534,6 +534,9 @@ public class CalculateServiceImpl implements CalculateService {
         //这个是为了找到所有source的准备
         List<Example<RegionInstanceModel>> sourceRegionInstanceModelExamples = new ArrayList<>();
         Map<String, Map<String, List<Document>>> relationInMap = new HashMap<>();
+        //以下两个数据结构是为了找到提供值的realRegionInstance，并为其附上relation
+        List<Example<RegionInstanceModel>> sourceRealRegionInstanceModelExamples = new ArrayList<>();
+        Map<String, Map<String, List<Document>>> realRelationInMap = new HashMap<>();
         Set<String> ghostRegionIds = new HashSet<>();
         ArrayList<Document> relationOutList = new ArrayList<>();
         ArrayList<Document> finalRelationOutList = new ArrayList<>();
@@ -564,14 +567,21 @@ public class CalculateServiceImpl implements CalculateService {
                             }else{
                                 relation.put("targetPropertyName",key);
                             }
+                            String sourceRegionType = rela.get("sourceRegionType");
                             relation.put("sourcePropertyName",rela.get("sourcePropertyName"));
                             relation.put("sourceObjId",rela.get("sourceObjId"));
-                            relation.put("sourceRegionType",rela.get("sourceRegionType"));
+                            relation.put("sourceRegionType",sourceRegionType);
+                            relation.put("sourceFatherRegionId",rela.get("sourceFatherRegionId"));
                             exampleRelations.add(relation);
-                            //构建查询所有给幽灵Region提供值的regionInstance
+                            //构建查询所有给幽灵Region提供值的regionInstance的查询条件
+                            //如果供值的Region的类型也为othermodel，那么查询条件的构成应该使用
                             RegionInstanceModel example = new RegionInstanceModel();
                             example.setInstanceId(instanceId);
-                            example.setRegionId(rela.get("sourceObjId"));
+                            if(sourceRegionType.equals("othermodel")){
+                                example.setRegionId(rela.get("sourceFatherRegionId"));
+                            }else{
+                                example.setRegionId(rela.get("sourceObjId"));
+                            }
                             Example<RegionInstanceModel> regionInstanceModelExampleexample = Example.of(example);
                             sourceRegionInstanceModelExamples.add(regionInstanceModelExampleexample);
                         });
@@ -647,9 +657,19 @@ public class CalculateServiceImpl implements CalculateService {
                             finalRelationOutList.add(relation);
                         });
                     }
-                    //构建relationmap的第二层
+                    //构建relationmap的第二层,如果是sourceRegion是othermodel，则应当把realRegionInstance的关系也写入
                     exampleRelations.forEach(rela->{
-                        String sourceObjId = rela.getString("sourceObjId");
+                        String sourceObjId = null;
+                        String sourceRegionType = rela.getString("sourceRegionType");
+                        if(sourceRegionType.equals("othermodel")){
+                            sourceObjId = rela.getString("sourceFatherRegionId");
+                            if(relationInMap.get(rela.getString("sourceObjId"))==null){
+                                Map<String, List<Document>> stringDocumentMap = new HashMap<>();
+                                relationInMap.put(rela.getString("sourceObjId"),stringDocumentMap);
+                            }
+                        }else{
+                            sourceObjId = rela.getString("sourceObjId");
+                        }
                         if(relationInMap.get(sourceObjId)==null){
                             Map<String, List<Document>> stringDocumentMap = new HashMap<>();
                             relationInMap.put(sourceObjId,stringDocumentMap);
@@ -660,16 +680,30 @@ public class CalculateServiceImpl implements CalculateService {
                         String targetRegionType = rela.getString("targetRegionType");
                         singleRelationOut.put("targetPropertyName",rela.getString("targetPropertyName"));
                         singleRelationOut.put("targetRegionType",targetRegionType);
+                        singleRelationOut.put("sourceFatherRegionId",rela.getString("sourceFatherRegionId"));
+                        singleRelationOut.put("fatherInstanceId",instanceId);
                         if(targetRegionType.equals("othermodel")){
                             singleRelationOut.put("targetObjId",rela.getString("targetObjId"));
                             singleRelationOut.put("targetFatherRegionId",uuid);
                         }else{
                             singleRelationOut.put("targetObjId",uuid);
                         }
-                        if(stringDocumentMap.get(sourcePropertyName)==null){
-                            stringDocumentMap.put(sourcePropertyName,new ArrayList<>());
+                        String key = null;
+                        if(sourceRegionType.equals("othermodel")){
+                            key = sourcePropertyName + "_" + rela.getString("sourceObjId");
+                            Map<String, List<Document>> realStringDocumentMap = relationInMap.get(rela.getString("sourceObjId"));
+                            if(realStringDocumentMap.get(key)==null){
+                                realStringDocumentMap.put(key,new ArrayList<>());
+                            }
+                            List<Document> documents = realStringDocumentMap.get(key);
+                            documents.add(singleRelationOut);
+                        }else{
+                            key = sourcePropertyName;
                         }
-                        List<Document> documents = stringDocumentMap.get(sourcePropertyName);
+                        if(stringDocumentMap.get(key)==null){
+                            stringDocumentMap.put(key,new ArrayList<>());
+                        }
+                        List<Document> documents = stringDocumentMap.get(key);
                         documents.add(singleRelationOut);
                     });
                     // 给幽灵Region的实例设置数据，如果是othermodel，也要为其递归生成实例
@@ -766,6 +800,48 @@ public class CalculateServiceImpl implements CalculateService {
                 for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
                     String key = entry.getKey();
                     ArrayList<Document> value = (ArrayList<Document>) entry.getValue();
+                    //如果当前regionInstance的类别是othermodel,则根据key和regionInstance的id构建realRegionInstance的查询条件
+                    if(regionInstance.getType().equals("othermodel")){
+                        RegionInstanceModel realRegionInstanceModel = new RegionInstanceModel();
+                        realRegionInstanceModel.setInstanceId(regionInstance.getId());
+                        String[] split = key.split("_");
+                        realRegionInstanceModel.setRegionId(split[1]);
+                        Example<RegionInstanceModel> realRegionInstanceExample = Example.of(realRegionInstanceModel);
+                        sourceRealRegionInstanceModelExamples.add(realRegionInstanceExample);
+                    }
+                    //需要把幽灵的删去
+                    //需要看看是否该项已经有值，有值的话要直接写进去
+                    List<Document> realRelations = new ArrayList<>();
+                    value.forEach(item->{
+                        String targetRegionType = item.getString("targetRegionType");
+                        if(targetRegionType.equals("othermodel")){
+                            //需要判断供值的是othermodel还是普通region
+                            if(!ghostRegionIds.contains(item.getString("targetFatherRegionId"))){
+                                realRelations.add(item);
+                            }
+                        }else{
+                            //需要判断供值的是othermodel还是普通region
+                            if(!ghostRegionIds.contains(item.getString("targetObjId"))){
+                                realRelations.add(item);
+                            }
+                        }
+                    });
+                    List<Document> documents = stringListMap.get(key);
+                    realRelations.addAll(documents);
+                    relationOut.put(key,realRelations);
+                }
+            }
+        });
+
+        List<RegionInstanceModel> realRegionInstanceModelsByCriteria = regionInstanceRepositoryImpl.findRegionInstanceModelsByCriteria(sourceRealRegionInstanceModelExamples);
+        realRegionInstanceModelsByCriteria.forEach(regionInstance->{
+            String regionId = regionInstance.getRegionId();
+            Document relationOut = regionInstance.getRelationOut();
+            Map<String, List<Document>> stringListMap = relationInMap.get(regionId);
+            if(relationOut!=null&&stringListMap!=null){
+                for (Map.Entry<String, Object> entry : relationOut.entrySet()) {
+                    String key = entry.getKey();
+                    ArrayList<Document> value = (ArrayList<Document>) entry.getValue();
                     //需要把幽灵的删去
                     //需要看看是否该项已经有值，有值的话要直接写进去
                     List<Document> realRelations = new ArrayList<>();
@@ -787,6 +863,7 @@ public class CalculateServiceImpl implements CalculateService {
                 }
             }
         });
+
         Document relationIn = targetAgg.getRelationIn();
         if(relationIn!=null){
             for (Map.Entry<String, Object> entry : relationIn.entrySet()) {
@@ -805,10 +882,11 @@ public class CalculateServiceImpl implements CalculateService {
             }
         }
         regionInstanceModelList.addAll(regionInstanceModelsByCriteria);
+        regionInstanceModelList.addAll(realRegionInstanceModelsByCriteria);
         regionInstanceModelList.add(targetAgg);
         regionInstanceRepository.saveAll(regionInstanceModelList);
         regionInstanceModelsByCriteria.forEach(item->{
-            if(item.getRelationOut()!=null){
+            if((!item.getType().equals("othermodel"))&&item.getRelationOut()!=null){
                 CalculateParamVo calculateParamVo = new CalculateParamVo();
                 calculateParamVo.setInstanceId(item.getInstanceId());
                 calculateParamVo.setRegionId(item.getRegionId());
