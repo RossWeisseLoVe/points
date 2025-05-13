@@ -569,11 +569,9 @@ public class CalculateServiceImpl implements CalculateService {
                             }
                             String sourceRegionType = rela.get("sourceRegionType");
                             if(sourceRegionType.equals("othermodel")){
-                                relation.put("sourceObjId",rela.get("sourceRealRegionId"));
-                                relation.put("sourceFatherRegionId",rela.get("sourceObjId"));
-                            }else{
-                                relation.put("sourceObjId",rela.get("sourceObjId"));
+                                relation.put("sourceFatherRegionId",rela.get("sourceFatherRegionId"));
                             }
+                            relation.put("sourceObjId",rela.get("sourceObjId"));
                             relation.put("sourcePropertyName",rela.get("sourcePropertyName"));
                             relation.put("sourceRegionType",sourceRegionType);
                             exampleRelations.add(relation);
@@ -636,6 +634,10 @@ public class CalculateServiceImpl implements CalculateService {
                     if(type.equals("othermodel")){
                         relationOutList.forEach(rela->{
                             AggregatorsType1 aggregatorsType1 = AggregatorsType1.fromDocument(targetAgg.getData());
+                            String sourceObjId = rela.getString("sourceObjId");
+                            if(sourceObjId==null){
+                                return;
+                            }
                             aggregatorsType1.getDataMap().put(uuid+"_"+rela.get("sourceObjId"),null);
                             Document document = aggregatorsType1.toDocument();
                             targetAgg.setData(document);

@@ -13,6 +13,7 @@ import com.dragon.flow.vo.calculate.CalculateParamVo;
 import com.dragon.flow.vo.calculate.GhostVo;
 import com.dragon.flow.vo.pager.ParamVo;
 import com.dragon.tools.common.ReturnCode;
+import com.dragon.tools.pager.PagerModel;
 import com.dragon.tools.vo.ReturnVo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -109,7 +110,7 @@ public class CalculateResource {
 
 
     @PostMapping("getModels")
-    public ReturnVo<List<CalculateModel>> getModels(@RequestBody ParamVo<CalculateModel> param){
+    public ReturnVo<PagerModel<CalculateModel>> getModels(@RequestBody ParamVo<CalculateModel> param){
         int pageNum = param.getQuery().getPageNum();
         int pageSize = param.getQuery().getPageSize();
         CalculateModel calculateModel = new CalculateModel();
@@ -121,11 +122,15 @@ public class CalculateResource {
         Pageable pageable = PageRequest.of(pageNum - 1,pageSize);
         Page<CalculateModel> all = modelsRepository.findAll(calculateModelExample,pageable);
         List<CalculateModel> content = all.getContent();
-        ReturnVo<List<CalculateModel>> listReturnVo = new ReturnVo<>();
-        listReturnVo.setCode(ReturnCode.SUCCESS);
-        listReturnVo.setData(content);
-        listReturnVo.setMsg("查询成功");
-        return listReturnVo;
+        long totalElements = all.getTotalElements();
+        PagerModel<CalculateModel> calculateModelPagerModel = new PagerModel<>();
+        calculateModelPagerModel.setRows(content);
+        calculateModelPagerModel.setTotal(totalElements);
+        ReturnVo<PagerModel<CalculateModel>> returnVo = new ReturnVo<>();
+        returnVo.setCode(ReturnCode.SUCCESS);
+        returnVo.setData(calculateModelPagerModel);
+        returnVo.setMsg("查询成功");
+        return returnVo;
     }
 
     @GetMapping("getAllModels")
