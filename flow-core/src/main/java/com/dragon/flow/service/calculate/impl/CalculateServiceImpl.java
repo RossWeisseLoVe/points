@@ -568,10 +568,14 @@ public class CalculateServiceImpl implements CalculateService {
                                 relation.put("targetPropertyName",key);
                             }
                             String sourceRegionType = rela.get("sourceRegionType");
+                            if(sourceRegionType.equals("othermodel")){
+                                relation.put("sourceObjId",rela.get("sourceRealRegionId"));
+                                relation.put("sourceFatherRegionId",rela.get("sourceObjId"));
+                            }else{
+                                relation.put("sourceObjId",rela.get("sourceObjId"));
+                            }
                             relation.put("sourcePropertyName",rela.get("sourcePropertyName"));
-                            relation.put("sourceObjId",rela.get("sourceObjId"));
                             relation.put("sourceRegionType",sourceRegionType);
-                            relation.put("sourceFatherRegionId",rela.get("sourceFatherRegionId"));
                             exampleRelations.add(relation);
                             //构建查询所有给幽灵Region提供值的regionInstance的查询条件
                             //如果供值的Region的类型也为othermodel，那么查询条件的构成应该使用
